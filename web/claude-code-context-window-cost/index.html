@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Code context window cost — tokenscope</title>
+<meta name="description" content="A bigger context window doesn't just hold more — it costs more, because the whole window is re-sent to the model every turn at the cache-read rate. Here's how window size turns into per-turn dollars.">
+<link rel="canonical" href="https://tokenscope.pages.dev/claude-code-context-window-cost/">
+<meta property="og:title" content="Claude Code context window cost">
+<meta property="og:description" content="How context window size translates directly into a bigger per-turn bill — and what to do about it.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://tokenscope.pages.dev/claude-code-context-window-cost/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='13'%3E%E2%8F%A3%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <div class="brand"><a href="/">tokenscope &#9187;</a></div>
+    <div class="crumbs"><a href="/">Home</a> &rsaquo; Guides &rsaquo; Context window cost</div>
+    <h1>Claude Code <span class="hl">context window cost</span></h1>
+    <p class="lead">A large context window is convenient — but the window isn't free to fill. Whatever the
+      model is carrying gets <strong>re-sent every turn</strong>, so the size of your live context maps
+      almost directly onto your per-turn cost.</p>
+  </div>
+</header>
+
+<article>
+<section>
+  <div class="wrap">
+    <h2>Capacity vs. what you actually use</h2>
+    <p>It helps to separate two things people both call "context window":</p>
+    <ul>
+      <li><strong>The window's capacity</strong> — the maximum tokens a model can accept. Having a large
+        ceiling costs nothing by itself.</li>
+      <li><strong>Your live context</strong> — how much of that window is actually filled right now: the
+        files, tool output, and history the model is carrying. <em>This</em> is what you pay for, because
+        it's what's re-sent each turn.</li>
+    </ul>
+    <p>So a big window is only expensive if you fill it. The cost lever is your live context size, not the
+      model's maximum.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>How window usage becomes dollars</h2>
+    <p>Once context is cached, each turn re-reads it at <strong>0.1&times;</strong> the input price. The
+      per-turn cost of just carrying context is therefore about:</p>
+    <div class="callout">
+      <code>per-turn carry cost &asymp; live context tokens &times; input price &times; 0.1</code>
+    </div>
+    <p>Two contexts, same model, same number of turns — the bigger live context costs proportionally more
+      on <em>every single turn</em>. Double the resident context and you roughly double the carry cost for
+      the rest of the session. Over hundreds of turns that proportionality is what turns a comfortable
+      window into a large bill. (Input price varies by model; see the
+      <a href="/reduce-claude-code-bill/">bill-reduction guide</a> for the default rates.)</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Why letting the window fill up is a trap</h2>
+    <p>Because the carry cost is paid every turn, context that goes in <em>early</em> is re-billed the most
+      times. Filling a large window near the start of a long session means you re-pay for all of it on every
+      subsequent turn. The cost isn't the moment you read the big file — it's the long tail of turns that
+      re-send it.</p>
+    <div class="callout warn">
+      A roomy window invites you to dump in more files and bigger output "just in case." Each addition is
+      re-sent every turn after. Keep the live context to what the current task actually needs.
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Keeping live context small</h2>
+    <ul>
+      <li><strong>Compact or restart</strong> when context has grown — it directly lowers the live size for
+        the turns ahead. See <a href="/when-to-use-compact-claude-code/">when to use /compact</a>.</li>
+      <li><strong>Be selective about what you read in.</strong> Targeted files beat reading whole trees;
+        grep or summarize huge output instead of pasting it whole.</li>
+      <li><strong>Disable tools that inject large context</strong> on every turn if you're not using them.</li>
+    </ul>
+    <p>All of these reduce the one number that drives the carry cost: how much the model is holding at once.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>See your context curve</h2>
+    <p>tokenscope plots your context size per turn (peak, average, and where it grew), so you can see how
+      full your window got and when. It reads your local logs only — nothing is uploaded.</p>
+    <div class="cta">
+      <div class="cmd">
+        <code>npx @wartzar-bee/tokenscope</code>
+        <a class="btnlink" href="/#try">Paste a report in your browser &rarr;</a>
+      </div>
+      <p class="small" style="margin-bottom:0">Read-only, local, no upload, no telemetry.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Related guides</h2>
+    <ul class="related">
+      <li><a href="/claude-code-cache-cost-explained/"><span class="t">Claude Code cache &amp; context cost, explained</span><span class="d">The 0.1&times; cache-read mechanic in full.</span></a></li>
+      <li><a href="/reduce-claude-code-bill/"><span class="t">How to reduce your Claude Code bill</span><span class="d">The concrete checklist, with model pricing.</span></a></li>
+      <li><a href="/when-to-use-compact-claude-code/"><span class="t">When to use /compact in Claude Code</span><span class="d">Shrinking live context without losing your thread.</span></a></li>
+      <li><a href="/why-is-claude-code-so-expensive/"><span class="t">Why is Claude Code so expensive?</span><span class="d">The plain-language overview.</span></a></li>
+    </ul>
+  </div>
+</section>
+</article>
+
+<footer>
+  <div class="wrap">
+    tokenscope &mdash; local, read-only Claude Code cost &amp; context attribution.
+    MIT. Not affiliated with Anthropic. &middot; <a href="/">Home</a> &middot; <a href="https://github.com/wartzar-bee/tokenscope">GitHub</a>
+  </div>
+</footer>
+</body>
+</html>
