@@ -6,6 +6,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { parse, analyze } from "../src/core.mjs";
 import { render } from "../src/report.mjs";
+import { shareSummary, shareMarkdown, shareCardSVG } from "../src/share.mjs";
 import { DEFAULT_PRICING } from "../src/pricing.mjs";
 
 const args = process.argv.slice(2);
@@ -18,6 +19,8 @@ Usage:
   npx tokenscope --all           aggregate ALL sessions
   npx tokenscope <file|dir>      analyze a specific session JSONL (or every .jsonl in a dir)
   --json                         machine-readable output
+  --share                        privacy-safe shareable summary (markdown + SVG card) — numbers only, no paths/content
+  --share-svg                    emit only the SVG "cost report card" (renders on GitHub)
   --pricing <file.json>          override model prices  (or put {"pricing":{...}} in ./.tokenscope.json)
   --no-color                     plain output
 
@@ -66,5 +69,19 @@ for (const f of files) { try { turns = turns.concat(parse(readFileSync(f, "utf8"
 if (!turns.length) { console.error("No assistant turns with usage found in the session(s)."); process.exit(1); }
 
 const a = analyze(turns, pricing);
-if (has("--json")) { console.log(JSON.stringify({ label, ...a, context: { ...a.context, curve: undefined } }, null, 2)); }
-else { console.log(render(a, { label })); }
+if (has("--share-svg")) {
+  console.log(shareCardSVG(a));
+} else if (has("--share")) {
+  // Privacy-safe by construction: only aggregate numbers, never `label`/paths/content.
+  if (has("--json")) {
+    console.log(JSON.stringify(shareSummary(a), null, 2));
+  } else {
+    console.log(shareMarkdown(a));
+    console.log("\n<!-- cost report card (SVG — paste into a .svg file or GitHub; renders inline) -->\n");
+    console.log(shareCardSVG(a));
+  }
+} else if (has("--json")) {
+  console.log(JSON.stringify({ label, ...a, context: { ...a.context, curve: undefined } }, null, 2));
+} else {
+  console.log(render(a, { label }));
+}
