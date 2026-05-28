@@ -4,7 +4,7 @@
 A local, read-only CLI that parses your Claude Code session logs and shows where the money goes: model output vs. context being **re-sent every turn** (the hidden 60%+ of most bills).
 
 ```
-$ npx tokenscope
+$ npx github:wartzar-bee/tokenscope
 
   tokenscope ⏣  latest session
   ──────────────────────────────────────────────────────
@@ -29,11 +29,12 @@ $ npx tokenscope
 Agentic coding (Claude Code, etc.) produces surprise bills, and the cause is mundane: as a session grows, the **whole context is re-sent every turn**, so cost balloons even when the model writes little. Existing dashboards show *totals*; tokenscope shows the **attribution** — output vs. cache-read vs. cache-write vs. fresh input, the per-turn context-growth curve, cost by model, subagent spend, and which tools fill your context — with concrete "trim this" insights.
 
 ## Install / run
+Runs straight from GitHub — no install, no npm account needed:
 ```
-npx tokenscope               # your most recent Claude Code session
-npx tokenscope --all         # aggregate every session
-npx tokenscope <file|dir>    # a specific session .jsonl
-npx tokenscope --json        # machine-readable
+npx github:wartzar-bee/tokenscope            # your most recent Claude Code session
+npx github:wartzar-bee/tokenscope --all      # aggregate every session
+npx github:wartzar-bee/tokenscope <file|dir> # a specific session .jsonl
+npx github:wartzar-bee/tokenscope --json     # machine-readable
 ```
 Reads `~/.claude/projects/**/*.jsonl`. **Read-only, local, no network, no telemetry** — open the source; nothing leaves your machine.
 
