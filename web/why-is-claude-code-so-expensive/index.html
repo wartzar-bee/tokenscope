@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why is Claude Code so expensive? — tokenscope</title>
+<meta name="description" content="Claude Code bills add up fast because the whole conversation context is re-sent to the model every turn. Here's what's actually on the bill — and how to see and cut it.">
+<link rel="canonical" href="https://tokenscope.pages.dev/why-is-claude-code-so-expensive/">
+<meta property="og:title" content="Why is Claude Code so expensive?">
+<meta property="og:description" content="Most of the bill is re-sent context, not the model writing code. Here's the breakdown and what to do about it.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://tokenscope.pages.dev/why-is-claude-code-so-expensive/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='13'%3E%E2%8F%A3%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <div class="brand"><a href="/">tokenscope &#9187;</a></div>
+    <div class="crumbs"><a href="/">Home</a> &rsaquo; Guides &rsaquo; Why is Claude Code so expensive?</div>
+    <h1>Why is Claude Code <span class="hl">so expensive?</span></h1>
+    <p class="lead">Short version: it usually isn't the model writing code. As an agentic-coding
+      session grows, the <strong>entire conversation context is re-sent to the model on every turn</strong>.
+      You pay to re-read the same files, tool output, and history again and again — and that cost grows
+      the longer the session runs.</p>
+  </div>
+</header>
+
+<article>
+<section>
+  <div class="wrap">
+    <h2>The mechanic that surprises everyone</h2>
+    <p>Large language models are stateless. They don't "remember" your session between turns. So to let
+      the model act on the conversation so far, the client has to send the whole context — your prompts,
+      the files it read, every tool result, and all prior replies — with <em>each</em> request.</p>
+    <p>In a chat that's cheap, because the conversation is short. In agentic coding it's not: Claude Code
+      reads files, runs commands, and accumulates large tool outputs, so the context balloons. A session
+      that has read a few large files and run a dozen commands can carry hundreds of thousands of tokens,
+      and that whole payload is re-sent every single turn.</p>
+    <div class="callout warn">
+      <strong>The counter-intuitive part:</strong> a turn where the model writes just a few lines of code
+      can still cost a lot — because before it writes those lines, the entire (large) context was sent to
+      it again.
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Where the money actually goes</h2>
+    <p>Every API call in a session is priced in a few buckets. Your dashboard shows the
+      <em>total</em>; what matters for cutting the bill is the <em>attribution</em>:</p>
+    <table>
+      <thead><tr><th>Bucket</th><th>What it is</th><th>Why it grows</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Cache read</strong></td><td>The context re-sent every turn so the model can "see" the conversation.</td><td>Grows as the session gets longer — usually the biggest line on a long session.</td></tr>
+        <tr><td><strong>Cache write</strong></td><td>New context (a file you open, a tool result) written into the prompt cache the first time.</td><td>Spikes when you pull in big files or verbose command output.</td></tr>
+        <tr><td><strong>Output</strong></td><td>The tokens the model actually generates — the code and explanations.</td><td>Often a surprisingly small slice of a big bill.</td></tr>
+        <tr><td><strong>Fresh input</strong></td><td>Uncached prompt tokens.</td><td>Usually small once caching kicks in.</td></tr>
+      </tbody>
+    </table>
+    <p>The key insight: on a long session, <strong>cache read</strong> — re-sent context — tends to
+      dominate, even though it's invisible on most dashboards. tokenscope exists to surface exactly this split.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Why caching helps but doesn't make it free</h2>
+    <p>Prompt caching is the thing that keeps this from being catastrophic. Anthropic's documented
+      multipliers (verify them for your tier, they can change):</p>
+    <ul>
+      <li><strong>Cache read = 0.1&times; the input price.</strong> Re-sending cached context is roughly
+        a tenth of the normal input cost.</li>
+      <li><strong>Cache write = 1.25&times;</strong> (5-minute cache) or <strong>2&times;</strong>
+        (1-hour cache) the input price, paid once when context is first written.</li>
+    </ul>
+    <p>So caching is a big discount — but 0.1&times; of a 400k-token context, re-paid on hundreds of turns,
+      still adds up. The math is simply <em>large context</em> &times; <em>many turns</em>. Caching lowers
+      the per-token rate; it doesn't change the fact that you re-send the whole thing every turn.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>See it for your own sessions</h2>
+    <p>tokenscope is a local, read-only CLI. It parses your Claude Code session logs
+      (<code>~/.claude/projects/**/*.jsonl</code>) and shows the output / cache-read / cache-write / fresh
+      split, the per-turn context-growth curve, and concrete "trim this" insights. Nothing is uploaded.</p>
+    <div class="cta">
+      <p style="margin-top:0"><strong>Run it on your latest session:</strong></p>
+      <div class="cmd">
+        <code>npx @wartzar-bee/tokenscope</code>
+        <a class="btnlink" href="/#try">Or paste a report in your browser &rarr;</a>
+      </div>
+      <p class="small" style="margin-bottom:0">Read-only &middot; local &middot; no network &middot; no telemetry.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Keep reading</h2>
+    <ul class="related">
+      <li><a href="/reduce-claude-code-bill/"><span class="t">How to reduce your Claude Code bill</span><span class="d">A concrete checklist that targets the lines that actually cost money.</span></a></li>
+      <li><a href="/claude-code-cache-cost-explained/"><span class="t">Claude Code cache &amp; context cost, explained</span><span class="d">The core mechanic in detail: why cached context dominates long sessions.</span></a></li>
+      <li><a href="/when-to-use-compact-claude-code/"><span class="t">When to use /compact in Claude Code</span><span class="d">When compacting helps, when a fresh session is better, and the trade-offs.</span></a></li>
+      <li><a href="/claude-code-context-window-cost/"><span class="t">Claude Code context window cost</span><span class="d">How a bigger context window translates directly into a bigger per-turn bill.</span></a></li>
+    </ul>
+  </div>
+</section>
+</article>
+
+<footer>
+  <div class="wrap">
+    tokenscope &mdash; local, read-only Claude Code cost &amp; context attribution.
+    MIT. Not affiliated with Anthropic. &middot; <a href="/">Home</a> &middot; <a href="https://github.com/wartzar-bee/tokenscope">GitHub</a>
+  </div>
+</footer>
+</body>
+</html>
