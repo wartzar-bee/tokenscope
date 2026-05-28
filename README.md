@@ -35,8 +35,17 @@ npx @wartzar-bee/tokenscope               # your most recent Claude Code session
 npx @wartzar-bee/tokenscope --all         # aggregate every session
 npx @wartzar-bee/tokenscope <file|dir>    # a specific session .jsonl
 npx @wartzar-bee/tokenscope --json        # machine-readable
+npx @wartzar-bee/tokenscope --share       # privacy-safe shareable summary (markdown + SVG card)
+npx @wartzar-bee/tokenscope --share-svg   # just the SVG "cost report card"
 ```
 Reads `~/.claude/projects/**/*.jsonl`. **Read-only, local, no network, no telemetry** — open the source; nothing leaves your machine.
+
+## Share your bill (privacy-safe)
+`--share` emits a compact summary built from **aggregate numbers only** — **no file paths, no prompt/response content** — so it's safe to paste in public:
+- **Markdown** for Reddit / Discord / a GitHub issue (total, the output/cache-read/cache-write/fresh split with %, peak/avg context, and the headline "X% of spend was re-sent context").
+- A self-contained **SVG "cost report card"** (`--share-svg`) — no binary deps; renders inline on GitHub and is trivially shareable.
+
+Prefer not to touch a terminal flag? The same render runs **entirely in your browser** at the web surface in [`web/`](web/): paste your `--json` output and it draws the full report + the SVG card locally — nothing is uploaded.
 
 ## Pricing
 Uses documented default prices (Anthropic cache multipliers: write 1.25×/2×, read 0.1× of input). **Verify and override** for your exact model/tier via `./.tokenscope.json`:
