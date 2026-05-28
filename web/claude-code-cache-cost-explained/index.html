@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Code cache &amp; context cost, explained — tokenscope</title>
+<meta name="description" content="The core mechanic behind Claude Code cost: cached context is re-read on every turn at 0.1x the input price, so on a long session it quietly becomes the biggest line on the bill. Here's how it works.">
+<link rel="canonical" href="https://tokenscope.pages.dev/claude-code-cache-cost-explained/">
+<meta property="og:title" content="Claude Code cache & context cost, explained">
+<meta property="og:description" content="Cached context is re-read every turn at 0.1x input price — so it dominates long-session cost. The mechanic, explained.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://tokenscope.pages.dev/claude-code-cache-cost-explained/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='13'%3E%E2%8F%A3%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <div class="brand"><a href="/">tokenscope &#9187;</a></div>
+    <div class="crumbs"><a href="/">Home</a> &rsaquo; Guides &rsaquo; Cache &amp; context cost explained</div>
+    <h1>Claude Code <span class="hl">cache &amp; context cost</span>, explained</h1>
+    <p class="lead">The single most important thing to understand about Claude Code cost: the cached
+      conversation context is <strong>re-read on every turn</strong>. Even at the discounted cache-read
+      rate, on a long session that re-reading quietly becomes the biggest line on the bill.</p>
+  </div>
+</header>
+
+<article>
+<section>
+  <div class="wrap">
+    <h2>Why context is sent at all</h2>
+    <p>The model is stateless between requests — it has no memory of your session. To act on the
+      conversation so far, the client sends the full context with every turn: your instructions, the files
+      it read, every tool result, and all prior model replies. Without this the model would start each turn
+      blind.</p>
+    <p>Prompt caching makes re-sending that context affordable. The first time a chunk of context appears
+      it's written to the cache; on later turns it's marked as a cache hit and read back at a steep
+      discount instead of being re-billed at full input price.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>The four buckets and their prices</h2>
+    <p>Each turn's usage is split into components. Anthropic's documented cache multipliers
+      (always verify for your tier — they can change):</p>
+    <table>
+      <thead><tr><th>Component</th><th>Price (relative to input)</th><th>What it covers</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Cache read</strong></td><td class="num">0.1&times; input</td><td>Context already in the cache, re-read this turn. Paid <em>every</em> turn.</td></tr>
+        <tr><td><strong>Cache write (5&nbsp;min)</strong></td><td class="num">1.25&times; input</td><td>New context written to the short-lived cache. Paid once.</td></tr>
+        <tr><td><strong>Cache write (1&nbsp;hour)</strong></td><td class="num">2&times; input</td><td>New context written to the longer-lived cache. Paid once.</td></tr>
+        <tr><td><strong>Fresh input</strong></td><td class="num">1&times; input</td><td>Uncached prompt tokens.</td></tr>
+        <tr><td><strong>Output</strong></td><td class="num">output rate</td><td>Tokens the model generates.</td></tr>
+      </tbody>
+    </table>
+    <p>So writing context is slightly <em>more</em> expensive than plain input (you pay a premium to store
+      it), and reading it back is much cheaper (0.1&times;). The trade is worth it because you read far more
+      often than you write — but you still pay that 0.1&times; on the whole context, every turn.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Why 0.1&times; still dominates</h2>
+    <p>The cache-read discount is large, which makes it easy to assume re-sent context is cheap. The thing
+      that flips it is repetition. Cache-read cost is, roughly:</p>
+    <div class="callout">
+      <code>cache-read cost &asymp; context size &times; number of turns &times; input price &times; 0.1</code>
+    </div>
+    <p>A modest 10k-token context over 10 turns is negligible. But agentic coding sessions routinely grow
+      to hundreds of thousands of tokens and run for hundreds of turns. Multiply a large context by many
+      turns and the 0.1&times; rate adds up — frequently past every other line combined. That's why a
+      session can be dominated by cache-read even when the model wrote relatively little code.</p>
+    <p>Two corollaries:</p>
+    <ul>
+      <li><strong>Context that arrives early is the most expensive,</strong> because it gets re-read on
+        every turn that follows. A big file read on turn 3 is re-billed on turns 4, 5, 6, and so on.</li>
+      <li><strong>Shrinking context mid-session pays off going forward,</strong> not retroactively — which
+        is exactly why <a href="/when-to-use-compact-claude-code/">/compact</a> and fresh sessions work.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Cache writes and cache expiry</h2>
+    <p>Cache entries don't live forever. The 5-minute cache is refreshed as long as you keep working; if a
+      session sits idle past the window, the entry expires and the context has to be <em>re-written</em>
+      (1.25&times; or 2&times; input) before it can be read cheaply again. In practice this means long idle
+      gaps can quietly add cache-write charges. Working in focused bursts keeps more context on the cheap
+      read path.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>See the split for your sessions</h2>
+    <p>tokenscope reads your local Claude Code logs and shows exactly this breakdown — output vs.
+      cache-read vs. cache-write vs. fresh input — plus how context grew turn by turn. The token counts
+      come straight from your logs; cost is those counts times the prices above (overridable in
+      <code>.tokenscope.json</code>).</p>
+    <div class="cta">
+      <div class="cmd">
+        <code>npx @wartzar-bee/tokenscope</code>
+        <a class="btnlink" href="/#try">Paste a report in your browser &rarr;</a>
+      </div>
+      <p class="small" style="margin-bottom:0">Read-only, local, no upload, no telemetry.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Related guides</h2>
+    <ul class="related">
+      <li><a href="/why-is-claude-code-so-expensive/"><span class="t">Why is Claude Code so expensive?</span><span class="d">The short, plain-language version of the cost story.</span></a></li>
+      <li><a href="/reduce-claude-code-bill/"><span class="t">How to reduce your Claude Code bill</span><span class="d">The concrete checklist that follows from this mechanic.</span></a></li>
+      <li><a href="/when-to-use-compact-claude-code/"><span class="t">When to use /compact in Claude Code</span><span class="d">How to shrink context without losing your thread.</span></a></li>
+      <li><a href="/claude-code-context-window-cost/"><span class="t">Claude Code context window cost</span><span class="d">Translating window size into per-turn dollars.</span></a></li>
+    </ul>
+  </div>
+</section>
+</article>
+
+<footer>
+  <div class="wrap">
+    tokenscope &mdash; local, read-only Claude Code cost &amp; context attribution.
+    MIT. Not affiliated with Anthropic. &middot; <a href="/">Home</a> &middot; <a href="https://github.com/wartzar-bee/tokenscope">GitHub</a>
+  </div>
+</footer>
+</body>
+</html>
