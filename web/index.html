@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why is my Claude Code bill so high? — tokenscope</title>
+<meta name="description" content="Most of a Claude Code (agentic coding) bill isn't the model writing code — it's the whole context being re-sent every turn. tokenscope is a local, read-only CLI that shows the split. Paste your --json output here to see it in your browser; nothing is uploaded.">
+<meta property="og:title" content="Why is my Claude Code bill so high?">
+<meta property="og:description" content="Most of it is re-sent context. tokenscope shows the split — local, read-only, no upload.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='13'%3E%E2%8F%A3%3C/text%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#0b1120; --panel:#0f172a; --panel2:#111c33; --line:#1e293b;
+    --ink:#e2e8f0; --mut:#94a3b8; --dim:#64748b;
+    --out:#22d3ee; --read:#fbbf24; --write:#c084fc; --fresh:#34d399; --web:#94a3b8;
+    --accent:#34d399; --warn:#fbbf24;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.6 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;}
+  a{color:var(--accent)} code,kbd,pre{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .wrap{max-width:860px;margin:0 auto;padding:0 20px}
+  header.hero{padding:64px 0 28px;border-bottom:1px solid var(--line)}
+  .brand{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:700;font-size:18px;color:var(--ink);letter-spacing:.3px}
+  h1{font-size:clamp(28px,5vw,44px);line-height:1.15;margin:18px 0 10px;font-weight:800;letter-spacing:-.02em}
+  h1 .hl{color:var(--warn)}
+  .sub{font-size:clamp(16px,2.4vw,19px);color:var(--mut);max-width:62ch;margin:0 0 26px}
+  .cmd{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap}
+  .cmd code{background:var(--panel2);border:1px solid var(--line);border-radius:8px;
+    padding:12px 14px;font-size:15px;color:var(--ink);flex:1;min-width:260px;overflow:auto}
+  button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);
+    background:var(--panel2);color:var(--ink);padding:12px 16px}
+  button:hover{border-color:#334155;background:#16233c}
+  button.primary{background:var(--accent);color:#06281b;border-color:var(--accent);font-weight:700}
+  button.primary:hover{filter:brightness(1.06)}
+  .note{color:var(--dim);font-size:13px;margin-top:10px}
+  section{padding:40px 0;border-bottom:1px solid var(--line)}
+  h2{font-size:24px;margin:0 0 14px;font-weight:700;letter-spacing:-.01em}
+  p{color:#cbd5e1}
+  .grid{display:grid;gap:16px;grid-template-columns:1fr 1fr}
+  @media(max-width:640px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
+  .card h3{margin:0 0 6px;font-size:16px}
+  .card p{margin:0;color:var(--mut);font-size:14.5px}
+  .steps{list-style:none;padding:0;margin:0;counter-reset:s}
+  .steps li{counter-increment:s;padding:10px 0 10px 40px;position:relative;color:#cbd5e1}
+  .steps li::before{content:counter(s);position:absolute;left:0;top:8px;width:26px;height:26px;
+    border-radius:50%;background:var(--panel2);border:1px solid var(--line);
+    display:grid;place-items:center;font-size:13px;color:var(--accent);font-weight:700}
+  textarea{width:100%;min-height:150px;background:var(--panel2);color:var(--ink);
+    border:1px solid var(--line);border-radius:10px;padding:14px;font-family:ui-monospace,Menlo,Consolas,monospace;
+    font-size:13px;resize:vertical}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}
+  .err{color:#fca5a5;font-size:14px;margin-top:8px;min-height:1.2em}
+  /* report */
+  #report{display:none;margin-top:8px}
+  .topline{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 16px;margin-bottom:8px}
+  .total{font-size:40px;font-weight:800;color:var(--accent)}
+  .turns{color:var(--mut)}
+  .warnpill{background:#3b2f0a;border:1px solid #5b4708;color:var(--warn);
+    border-radius:8px;padding:6px 10px;font-size:13px;margin:8px 0}
+  .rows{margin:10px 0 4px}
+  .row{display:grid;grid-template-columns:200px 1fr 48px 84px;align-items:center;gap:10px;margin:7px 0;font-size:14px}
+  @media(max-width:640px){.row{grid-template-columns:130px 1fr 40px 64px};.row .lbl{font-size:13px}}
+  .row .lbl{color:#cbd5e1}
+  .track{background:var(--panel2);border-radius:6px;height:14px;overflow:hidden}
+  .fill{height:100%;border-radius:6px}
+  .row .pc{text-align:right;color:var(--mut)} .row .mny{text-align:right;color:var(--dim)}
+  .meta{color:var(--mut);font-size:14px;margin:14px 0}
+  .insights{margin:12px 0 0;padding:0;list-style:none}
+  .insights li{padding:8px 0 8px 22px;position:relative;color:#cbd5e1;font-size:14.5px;border-top:1px solid var(--line)}
+  .insights li::before{content:"•";position:absolute;left:4px;color:var(--warn)}
+  .cardbox{margin:18px 0 8px}
+  .cardbox svg{max-width:100%;height:auto;border-radius:14px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+  .chip{background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:12.5px;color:var(--mut)}
+  footer{padding:34px 0 60px;color:var(--dim);font-size:13px}
+  .privacy{background:linear-gradient(180deg,#0f1d33,#0f172a);border:1px solid #1d3a2e;
+    border-radius:12px;padding:16px 18px;margin:10px 0}
+  .privacy strong{color:var(--fresh)}
+  .small{font-size:13px;color:var(--dim)}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <div class="brand">tokenscope &#9187;</div>
+    <h1>Why is my Claude Code bill <span class="hl">so high?</span></h1>
+    <p class="sub">Short answer: most of it usually isn't the model writing code. As an agentic-coding
+      session grows, the <strong>entire context is re-sent on every turn</strong> — so you pay to
+      re-read the same files, tool output, and history again and again. tokenscope shows you the split.</p>
+    <div class="cmd">
+      <code id="npx">npx @wartzar-bee/tokenscope</code>
+      <button id="copyNpx" type="button">Copy</button>
+      <a href="#try"><button class="primary" type="button">Paste my report &darr;</button></a>
+    </div>
+    <div class="note">Read-only &middot; local &middot; no network &middot; no telemetry. <a href="https://github.com/wartzar-bee/tokenscope">Source on GitHub</a>.</div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2>What's actually on the bill</h2>
+    <p>Every API call in a session is priced in four buckets. Dashboards show you the <em>total</em>;
+      tokenscope shows the <em>attribution</em> — which bucket your money is really going to:</p>
+    <div class="grid">
+      <div class="card"><h3 style="color:var(--read)">Cache read — re-sent context</h3>
+        <p>The conversation so far, re-sent every turn so the model can "remember" it. On long sessions this is often the single biggest line — and it grows the longer you go.</p></div>
+      <div class="card"><h3 style="color:var(--write)">Cache write — new context</h3>
+        <p>Newly added context (files you open, tool results) written into the prompt cache the first time.</p></div>
+      <div class="card"><h3 style="color:var(--out)">Output — the model writing</h3>
+        <p>The tokens the model actually generates. Often a surprisingly small slice of a big bill.</p></div>
+      <div class="card"><h3 style="color:var(--fresh)">Fresh input</h3>
+        <p>Uncached prompt tokens. Usually small once caching kicks in.</p></div>
+    </div>
+    <p class="small" style="margin-top:16px">The fix is usually mundane: trim what stays in context — <code>/compact</code> or a fresh
+      session when the window gets large, and don't keep huge files/tool output resident. tokenscope's
+      insights point at the specific turns and tools doing the damage.</p>
+  </div>
+</section>
+
+<section id="try">
+  <div class="wrap">
+    <h2>See your own split &mdash; in your browser</h2>
+    <div class="privacy">
+      <strong>Nothing is uploaded.</strong> This page runs entirely in your browser. Paste the output of
+      <code>--json</code> and the report + shareable card are rendered locally with JavaScript. There is no
+      server, no analytics, and no network request &mdash; you can disconnect your machine and it still works.
+    </div>
+    <ol class="steps">
+      <li>Run <code>npx @wartzar-bee/tokenscope --json</code> in your terminal
+        <button id="copyJson" type="button" style="padding:4px 10px;font-size:13px;margin-left:6px">copy command</button></li>
+      <li>Copy the JSON it prints.</li>
+      <li>Paste it below and click <em>Render</em>.</li>
+    </ol>
+    <textarea id="input" placeholder='Paste the JSON from `npx @wartzar-bee/tokenscope --json` here…'></textarea>
+    <div class="toolbar">
+      <button class="primary" id="render" type="button">Render</button>
+      <button id="sample" type="button">Load a sample</button>
+      <button id="clear" type="button">Clear</button>
+    </div>
+    <div class="err" id="err"></div>
+
+    <div id="report">
+      <div class="topline">
+        <div class="total" id="r-total"></div>
+        <div class="turns" id="r-turns"></div>
+      </div>
+      <div class="warnpill" id="r-warn" style="display:none"></div>
+
+      <h3 style="margin:14px 0 4px">Where the money went</h3>
+      <div class="rows" id="r-rows"></div>
+
+      <div class="meta" id="r-context"></div>
+
+      <h3 style="margin:18px 0 4px">Shareable cost report card</h3>
+      <div class="small">A self-contained SVG (numbers only &mdash; no paths, no content). Renders inline on GitHub. Download it or copy the markdown to share.</div>
+      <div class="cardbox" id="r-card"></div>
+      <div class="toolbar">
+        <button id="dlsvg" type="button">Download SVG</button>
+        <button id="copymd" type="button">Copy share markdown</button>
+      </div>
+
+      <div id="r-insights-wrap" style="display:none">
+        <h3 style="margin:18px 0 4px">Insights</h3>
+        <ul class="insights" id="r-insights"></ul>
+      </div>
+
+      <div id="r-tools-wrap" style="display:none">
+        <h3 style="margin:18px 0 4px">Tool calls <span class="small">(what filled context)</span></h3>
+        <div class="chips" id="r-tools"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>FAQ</h2>
+    <p><strong>Is this affiliated with Anthropic?</strong> No. tokenscope is an independent, open-source tool.</p>
+    <p><strong>Are the prices exact?</strong> They're documented defaults (incl. Anthropic's cache multipliers: write 1.25&times;/2&times;, read 0.1&times; of input). Token counts are read straight from your local logs; you can override prices in <code>.tokenscope.json</code>. Unknown models are flagged, never silently counted as $0.</p>
+    <p><strong>Does the website see my data?</strong> No. The CLI reads <code>~/.claude/projects/**/*.jsonl</code> locally; this page only parses text you paste, in your browser. The shareable summary is aggregate numbers only &mdash; no file paths and no prompt/response content.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    tokenscope &mdash; local, read-only Claude Code cost &amp; context attribution.
+    MIT. Not affiliated with Anthropic. &middot; <a href="https://github.com/wartzar-bee/tokenscope">GitHub</a>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
