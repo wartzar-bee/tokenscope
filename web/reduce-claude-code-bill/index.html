@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to reduce your Claude Code bill — tokenscope</title>
+<meta name="description" content="A concrete, no-fluff checklist for lowering your Claude Code bill: compact or restart long sessions, keep context small, and pick the right model. Plus how to see which turns and tools cost the most.">
+<link rel="canonical" href="https://tokenscope.pages.dev/reduce-claude-code-bill/">
+<meta property="og:title" content="How to reduce your Claude Code bill">
+<meta property="og:description" content="A concrete checklist that targets the lines that actually cost money — re-sent context first.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://tokenscope.pages.dev/reduce-claude-code-bill/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='13'%3E%E2%8F%A3%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <div class="brand"><a href="/">tokenscope &#9187;</a></div>
+    <div class="crumbs"><a href="/">Home</a> &rsaquo; Guides &rsaquo; Reduce your Claude Code bill</div>
+    <h1>How to reduce your <span class="hl">Claude Code bill</span></h1>
+    <p class="lead">Most of a Claude Code bill is re-sent context, not the model writing code. So the
+      biggest savings come from one idea: <strong>keep the context the model carries small</strong>. Here's
+      a concrete checklist, roughly in order of impact.</p>
+  </div>
+</header>
+
+<article>
+<section>
+  <div class="wrap">
+    <h2>First, measure — don't guess</h2>
+    <p>Before changing your workflow, find out where the money is actually going. On most long sessions
+      the dominant line is <strong>cache read</strong> (context re-sent every turn), but the only way to
+      know <em>your</em> split is to look at your own logs.</p>
+    <div class="cta">
+      <div class="cmd">
+        <code>npx @wartzar-bee/tokenscope</code>
+        <a class="btnlink" href="/#try">Paste a report in your browser &rarr;</a>
+      </div>
+      <p class="small" style="margin-bottom:0">Local, read-only, no upload. It prints the output / cache-read /
+        cache-write split, the context-growth curve, and which tools filled your context.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>The checklist</h2>
+
+    <h3>1. Compact or restart long sessions</h3>
+    <p>Cache-read cost scales with <em>context size &times; number of turns</em>. Once a session has
+      accumulated a large context, every remaining turn re-pays for it. Running <code>/compact</code>
+      collapses the history into a summary so subsequent turns carry far less; starting a
+      <strong>fresh session</strong> for a new task resets it entirely. This is usually the single
+      highest-leverage habit. See <a href="/when-to-use-compact-claude-code/">when to use /compact</a>.</p>
+
+    <h3>2. Don't keep huge files and tool output resident</h3>
+    <p>Every file the model reads and every verbose command it runs gets written into context, then
+      re-sent on subsequent turns. A few habits help:</p>
+    <ul>
+      <li>Point the model at the <em>relevant</em> files or functions rather than asking it to read
+        everything.</li>
+      <li>Avoid piping enormous logs, full test output, or giant generated files into the conversation —
+        summarize or grep first.</li>
+      <li>If a big file was needed once but isn't anymore, a compact or fresh session sheds it.</li>
+    </ul>
+
+    <h3>3. Trim the tools that bloat context</h3>
+    <p>Some tools and MCP servers inject large schemas, directory listings, or verbose results on every
+      relevant turn. tokenscope's tool breakdown shows which tools were called most; if a tool you rarely
+      use is adding a lot of context, disabling it removes that weight from every turn.</p>
+
+    <h3>4. Match the model to the task</h3>
+    <p>Input price drives every cache-read and cache-write charge, so the model you choose multiplies your
+      whole context cost. Documented default rates (verify for your tier — they can change):</p>
+    <table>
+      <thead><tr><th>Model family</th><th class="num">Input / 1M</th><th class="num">Output / 1M</th></tr></thead>
+      <tbody>
+        <tr><td>claude-opus-4</td><td class="num">$15</td><td class="num">$75</td></tr>
+        <tr><td>claude-sonnet-4</td><td class="num">$3</td><td class="num">$15</td></tr>
+        <tr><td>claude-haiku-4</td><td class="num">$1</td><td class="num">$5</td></tr>
+      </tbody>
+    </table>
+    <p>Reserve the most expensive model for the reasoning-heavy work; a cheaper model for routine edits and
+      exploration cuts the cost of the exact same context proportionally. (These are defaults; always
+      confirm current pricing for your plan.)</p>
+
+    <h3>5. Let caching work for you</h3>
+    <p>Prompt caching already discounts re-sent context to <strong>0.1&times;</strong> the input price, but
+      the cache has a short lifetime. Long idle gaps can let it expire, forcing a re-write
+      (<strong>1.25&times;</strong> for the 5-minute cache, <strong>2&times;</strong> for the 1-hour cache).
+      Working in focused bursts rather than leaving a session idle for long stretches keeps more of your
+      context on the cheap cache-read path.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>What <em>not</em> to over-optimize</h2>
+    <p>The model's <strong>output</strong> — the code it writes — is usually a small slice of the bill, so
+      asking for terser answers rarely moves the needle. Don't sacrifice useful explanations to save output
+      tokens; spend your effort on context size instead. Measure first so you optimize the line that's
+      actually big.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Related guides</h2>
+    <ul class="related">
+      <li><a href="/why-is-claude-code-so-expensive/"><span class="t">Why is Claude Code so expensive?</span><span class="d">The mechanic behind the surprise bills, in plain terms.</span></a></li>
+      <li><a href="/claude-code-cache-cost-explained/"><span class="t">Claude Code cache &amp; context cost, explained</span><span class="d">Why cached context dominates and how the multipliers work.</span></a></li>
+      <li><a href="/when-to-use-compact-claude-code/"><span class="t">When to use /compact in Claude Code</span><span class="d">The single highest-leverage habit, with trade-offs.</span></a></li>
+      <li><a href="/claude-code-context-window-cost/"><span class="t">Claude Code context window cost</span><span class="d">How window size becomes per-turn cost.</span></a></li>
+    </ul>
+  </div>
+</section>
+</article>
+
+<footer>
+  <div class="wrap">
+    tokenscope &mdash; local, read-only Claude Code cost &amp; context attribution.
+    MIT. Not affiliated with Anthropic. &middot; <a href="/">Home</a> &middot; <a href="https://github.com/wartzar-bee/tokenscope">GitHub</a>
+  </div>
+</footer>
+</body>
+</html>
