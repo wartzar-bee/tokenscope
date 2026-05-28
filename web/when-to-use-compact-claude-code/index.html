@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>When to use /compact in Claude Code — tokenscope</title>
+<meta name="description" content="When /compact actually saves money in Claude Code, when a fresh session is the better move, and the trade-off you're making. Compacting shrinks the context that's re-sent every turn.">
+<link rel="canonical" href="https://tokenscope.pages.dev/when-to-use-compact-claude-code/">
+<meta property="og:title" content="When to use /compact in Claude Code">
+<meta property="og:description" content="When compacting helps, when a fresh session is better, and the trade-offs of each.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://tokenscope.pages.dev/when-to-use-compact-claude-code/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='13'%3E%E2%8F%A3%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <div class="brand"><a href="/">tokenscope &#9187;</a></div>
+    <div class="crumbs"><a href="/">Home</a> &rsaquo; Guides &rsaquo; When to use /compact</div>
+    <h1>When to use <span class="hl">/compact</span> in Claude Code</h1>
+    <p class="lead">Compacting replaces the accumulated conversation with a shorter summary, so the context
+      re-sent on every following turn shrinks. Because <a href="/claude-code-cache-cost-explained/">re-sent
+      context dominates long-session cost</a>, knowing when to compact is one of the highest-leverage cost
+      habits you have.</p>
+  </div>
+</header>
+
+<article>
+<section>
+  <div class="wrap">
+    <h2>What /compact does</h2>
+    <p>Over a long session the context grows: files read, command output, and a long back-and-forth all
+      stay resident and get re-sent every turn at the cache-read rate. <code>/compact</code> summarizes the
+      conversation so far into a much smaller representation and continues from there. The practical effect
+      on cost: every turn <em>after</em> the compact carries less context, so each one is cheaper.</p>
+    <div class="callout">
+      Compacting helps <strong>going forward</strong>, not retroactively. It can't refund the turns you
+      already paid for — it lowers the cost of the turns still ahead. So the earlier you compact a bloated
+      session, the more turns benefit.
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>When to compact</h2>
+    <ul>
+      <li><strong>The context has grown large and you have a lot of work left.</strong> This is the
+        textbook case: a big context times many remaining turns is exactly what compacting cuts.</li>
+      <li><strong>You pulled in big one-off context that's no longer needed.</strong> A large file or
+        verbose log that mattered for one step is now dead weight being re-sent every turn — compacting
+        sheds it.</li>
+      <li><strong>The thread has wandered.</strong> If the early conversation is no longer relevant to what
+        you're doing now, a summary keeps the useful gist and drops the rest.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>When a fresh session beats /compact</h2>
+    <p>Compacting keeps a summary of the old conversation. Sometimes you don't even want that:</p>
+    <ul>
+      <li><strong>You're genuinely starting a new task.</strong> A fresh session carries zero historical
+        context, which is the cheapest possible starting point — nothing old is re-sent at all.</li>
+      <li><strong>The session is huge and the history isn't worth summarizing.</strong> If almost nothing
+        from earlier matters, a clean start beats paying to carry even a summary.</li>
+    </ul>
+    <p>Rule of thumb: <em>same task, want to keep the thread</em> &rarr; compact. <em>New task, or the old
+      thread no longer matters</em> &rarr; fresh session.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>The trade-off</h2>
+    <p>Compacting isn't free of downsides. The summary is lossy: details, exact file contents, and nuance
+      from the original conversation can be dropped, so the model may need to re-read a file or re-establish
+      something it "knew" before. That re-reading is itself new context (a cache write, then cache reads).
+      In practice the savings on a bloated session far outweigh this, but it's the reason not to compact
+      compulsively on a still-small context — there's nothing to gain and you might lose useful detail.</p>
+    <div class="callout warn">
+      Don't compact a small, focused session just to be tidy. If the context is small, the re-sent cost is
+      already low, and you'd only risk dropping detail for no saving.
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Know when you're in the danger zone</h2>
+    <p>You don't have to guess whether a session has grown large. tokenscope shows your peak and average
+      context size and the per-turn growth curve, so you can see when context has crept up and a compact or
+      fresh session would pay off.</p>
+    <div class="cta">
+      <div class="cmd">
+        <code>npx @wartzar-bee/tokenscope</code>
+        <a class="btnlink" href="/#try">Paste a report in your browser &rarr;</a>
+      </div>
+      <p class="small" style="margin-bottom:0">Read-only, local, no upload. Flags large contexts and the
+        turns and tools driving them.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Related guides</h2>
+    <ul class="related">
+      <li><a href="/reduce-claude-code-bill/"><span class="t">How to reduce your Claude Code bill</span><span class="d">The full checklist; compacting is step one.</span></a></li>
+      <li><a href="/claude-code-cache-cost-explained/"><span class="t">Claude Code cache &amp; context cost, explained</span><span class="d">Why re-sent context is the thing compacting attacks.</span></a></li>
+      <li><a href="/why-is-claude-code-so-expensive/"><span class="t">Why is Claude Code so expensive?</span><span class="d">The plain-language version of the cost story.</span></a></li>
+      <li><a href="/claude-code-context-window-cost/"><span class="t">Claude Code context window cost</span><span class="d">How window size becomes per-turn dollars.</span></a></li>
+    </ul>
+  </div>
+</section>
+</article>
+
+<footer>
+  <div class="wrap">
+    tokenscope &mdash; local, read-only Claude Code cost &amp; context attribution.
+    MIT. Not affiliated with Anthropic. &middot; <a href="/">Home</a> &middot; <a href="https://github.com/wartzar-bee/tokenscope">GitHub</a>
+  </div>
+</footer>
+</body>
+</html>
