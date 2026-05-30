@@ -44,8 +44,16 @@ Reads `~/.claude/projects/**/*.jsonl`. **Read-only, local, no network, no teleme
 `--share` emits a compact summary built from **aggregate numbers only** — **no file paths, no prompt/response content** — so it's safe to paste in public:
 - **Markdown** for Reddit / Discord / a GitHub issue (total, the output/cache-read/cache-write/fresh split with %, peak/avg context, and the headline "X% of spend was re-sent context").
 - A self-contained **SVG "cost report card"** (`--share-svg`) — no binary deps; renders inline on GitHub and is trivially shareable.
+- **How you compare** — both forms now answer "is my session unusual?" against a shipped, offline reference set of real sessions (e.g. _"more cache-efficient than ~80% of measured sessions; median session re-sends 24%"_). It's a reference yardstick, not a census — full honest distribution at [tokenscope.pages.dev/benchmark](https://tokenscope.pages.dev/benchmark/).
 
 Prefer not to touch a terminal flag? The same render runs **entirely in your browser** at the web surface in [`web/`](web/): paste your `--json` output and it draws the full report + the SVG card locally — nothing is uploaded.
+
+## Use it from an AI agent (MCP server)
+There's an [**MCP server**](mcp/) that exposes the same engine to AI agents / MCP clients (Claude Desktop, Claude Code, etc.) as tools: `analyze_claude_cost`, `get_cost_benchmark`, and `tokenscope_share_summary`. Add it to your MCP config:
+```json
+{ "mcpServers": { "tokenscope": { "command": "npx", "args": ["-y", "@wartzar-bee/tokenscope-mcp"] } } }
+```
+Then ask your agent *"use tokenscope to analyze my last Claude Code session."* It's the same local, read-only engine — see [`mcp/README.md`](mcp/README.md).
 
 ## Pricing
 Uses documented default prices (Anthropic cache multipliers: write 1.25×/2×, read 0.1× of input). **Verify and override** for your exact model/tier via `./.tokenscope.json`:
