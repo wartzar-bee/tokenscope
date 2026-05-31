@@ -1,7 +1,7 @@
 {
-  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.wartzar-bee/tokenscope",
-  "description": "Analyze Claude Code session token cost & context attribution (local, read-only). See how much of the bill is re-sent cached context vs model output, with percentile benchmarks.",
+  "description": "Analyze Claude Code token cost & context attribution. Local, read-only MCP server.",
   "repository": {
     "url": "https://github.com/wartzar-bee/tokenscope",
     "source": "github"
