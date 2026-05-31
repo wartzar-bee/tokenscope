@@ -6,13 +6,15 @@
     "url": "https://github.com/wartzar-bee/tokenscope",
     "source": "github"
   },
-  "version": "0.1.0",
+  "version": "0.1.1",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@wartzar-bee/tokenscope-mcp",
-      "version": "0.1.0",
-      "transport": { "type": "stdio" }
+      "version": "0.1.1",
+      "transport": {
+        "type": "stdio"
+      }
     }
   ]
 }
