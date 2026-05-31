@@ -1,9 +1,11 @@
 {
   "name": "@wartzar-bee/tokenscope-mcp",
-  "version": "0.1.0",
-  "description": "MCP server for tokenscope — let AI agents analyze Claude Code session cost & context attribution (reuses tokenscope's engine; local, read-only).",
+  "version": "0.1.1",
+  "description": "MCP server for tokenscope \u2014 let AI agents analyze Claude Code session cost & context attribution (reuses tokenscope's engine; local, read-only).",
   "type": "module",
-  "bin": { "tokenscope-mcp": "server.mjs" },
+  "bin": {
+    "tokenscope-mcp": "server.mjs"
+  },
   "scripts": {
     "start": "node server.mjs",
     "test": "node test/mcp.test.mjs"
@@ -20,14 +22,26 @@
     "context-window",
     "anthropic"
   ],
-  "repository": { "type": "git", "url": "git+https://github.com/wartzar-bee/tokenscope.git", "directory": "mcp" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wartzar-bee/tokenscope.git",
+    "directory": "mcp"
+  },
   "homepage": "https://github.com/wartzar-bee/tokenscope/tree/main/mcp#readme",
-  "bugs": { "url": "https://github.com/wartzar-bee/tokenscope/issues" },
-  "engines": { "node": ">=18" },
+  "bugs": {
+    "url": "https://github.com/wartzar-bee/tokenscope/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "@wartzar-bee/tokenscope": "^0.2.0"
   },
-  "files": ["server.mjs", "README.md"],
-  "license": "MIT"
+  "files": [
+    "server.mjs",
+    "README.md"
+  ],
+  "license": "MIT",
+  "mcpName": "io.github.wartzar-bee/tokenscope"
 }
