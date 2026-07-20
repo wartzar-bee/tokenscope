@@ -3,6 +3,9 @@
 **See what your AI-coding session actually cost — and what's eating your context.**
 A local, read-only CLI that parses your Claude Code session logs and shows where the money goes: model output vs. context being **re-sent every turn** (the hidden 60%+ of most bills).
 
+
+> **Why this exists:** I put an AI agent on a timer and it burned 136M tokens overnight, most of it re-reading its own context. tokenscope is how I found that. [Read the postmortem →](https://dev.to/wartzarbee/i-put-an-ai-agent-on-a-timer-overnight-it-burned-136m-tokens-doing-almost-nothing-2ae2)
+
 ```
 $ npx @wartzar-bee/tokenscope
 
