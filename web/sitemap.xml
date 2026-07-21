@@ -2,20 +2,78 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://tokenscope.pages.dev/</loc>
+    <lastmod>2026-05-31</lastmod>
+  </url>
+  <url>
+    <loc>https://tokenscope.pages.dev/card/</loc>
+    <lastmod>2026-05-29</lastmod>
+  </url>
+  <url>
+    <loc>https://tokenscope.pages.dev/benchmark/</loc>
+    <lastmod>2026-05-29</lastmod>
+  </url>
+  <url>
+    <loc>https://tokenscope.pages.dev/study/</loc>
+    <lastmod>2026-05-29</lastmod>
   </url>
   <url>
     <loc>https://tokenscope.pages.dev/why-is-claude-code-so-expensive/</loc>
+    <lastmod>2026-05-29</lastmod>
   </url>
   <url>
     <loc>https://tokenscope.pages.dev/reduce-claude-code-bill/</loc>
+    <lastmod>2026-05-29</lastmod>
   </url>
   <url>
     <loc>https://tokenscope.pages.dev/claude-code-cache-cost-explained/</loc>
+    <lastmod>2026-05-29</lastmod>
   </url>
   <url>
     <loc>https://tokenscope.pages.dev/when-to-use-compact-claude-code/</loc>
+    <lastmod>2026-05-29</lastmod>
   </url>
   <url>
     <loc>https://tokenscope.pages.dev/claude-code-context-window-cost/</loc>
+    <lastmod>2026-05-29</lastmod>
+  </url>
+  <url>
+    <loc>https://tokenscope.pages.dev/claude-code-cost-per-session/</loc>
+    <lastmod>2026-05-31</lastmod>
+  </url>
+  <url>
+    <loc>https://tokenscope.pages.dev/claude-code-cost-per-turn/</loc>
+    <lastmod>2026-05-31</lastmod>
+  </url>
+  <url>
+    <loc>https://tokenscope.pages.dev/claude-code-cache-hit-rate/</loc>
+    <lastmod>2026-05-31</lastmod>
+  </url>
+  <url>
+    <loc>https://tokenscope.pages.dev/claude-code-cost-long-session/</loc>
+    <lastmod>2026-05-31</lastmod>
+  </url>
+  <url>
+    <loc>https://tokenscope.pages.dev/claude-code-sonnet-vs-haiku-cost/</loc>
+    <lastmod>2026-05-31</lastmod>
+  </url>
+  <url>
+    <loc>https://tokenscope.pages.dev/claude-code-token-cost-calculator/</loc>
+    <lastmod>2026-05-31</lastmod>
+  </url>
+  <url>
+    <loc>https://tokenscope.pages.dev/claude-code-cost-spike/</loc>
+    <lastmod>2026-05-31</lastmod>
+  </url>
+  <url>
+    <loc>https://tokenscope.pages.dev/claude-code-agentic-vs-chat-cost/</loc>
+    <lastmod>2026-05-31</lastmod>
+  </url>
+  <url>
+    <loc>https://tokenscope.pages.dev/claude-code-cache-write-cost/</loc>
+    <lastmod>2026-05-31</lastmod>
+  </url>
+  <url>
+    <loc>https://tokenscope.pages.dev/claude-code-output-tokens-cost/</loc>
+    <lastmod>2026-05-31</lastmod>
   </url>
 </urlset>

@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How much does a Claude Code session cost? — tokenscope</title>
+<meta name="description" content="Real measured data: the median Claude Code session costs $4.08 (n=66). The 90th percentile reaches $11.42. One extreme session hit $1,278. Here's what drives the difference — and how to see it in your own sessions.">
+<link rel="canonical" href="https://tokenscope.pages.dev/claude-code-cost-per-session/">
+<meta property="og:title" content="How much does a Claude Code session cost?">
+<meta property="og:description" content="Measured data (n=66): median session $4.08, p90 $11.42. One session hit $1,278. Here's the distribution and what drives the spread.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://tokenscope.pages.dev/claude-code-cost-per-session/">
+<meta property="og:site_name" content="tokenscope">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Claude Code session cost — real data (n=66)">
+<meta name="twitter:description" content="Median $4.08, p90 $11.42, one extreme session $1,278. What drives the spread.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='13'%3E%E2%8F%A3%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "How much does a Claude Code session cost?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Based on measured data from 66 real sessions, the median Claude Code session costs $4.08. The 10th percentile is $1.63 and the 90th percentile is $11.42. Cost depends heavily on session length: a session with a 29-turn median reaches ~44,900 peak context tokens, while a 67-turn (p90) session reaches ~86,100 tokens. One extreme 1,270-turn session cost $1,278."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is the cost range for a typical Claude Code session?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Most sessions fall between $1.63 (p10) and $11.42 (p90). The interquartile range is $2.10 to $8.31. Sessions are right-skewed: the median is $4.08 but a small number of very long sessions can cost hundreds of dollars."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Why do some Claude Code sessions cost so much more than others?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The main driver is session length (turns) and peak context size. A longer session accumulates more context — files read, tool output, conversation history — and that entire context is re-sent to the model on every turn at the cache-read rate (0.1x input price). More turns × larger context = disproportionately higher cost. In measured data, pooled cost split is 60% cache-read, 25% cache-write, 15% output."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How can I see what my Claude Code session actually cost?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Run tokenscope: npx @wartzar-bee/tokenscope. It reads your local session logs (no upload) and shows a per-session cost breakdown with the cache-read / cache-write / output split."
+      }
+    }
+  ]
+}
+</script>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <div class="brand"><a href="/">tokenscope &#9187;</a></div>
+    <div class="crumbs"><a href="/">Home</a> &rsaquo; Guides &rsaquo; How much does a Claude Code session cost?</div>
+    <h1>How much does a Claude Code <span class="hl">session cost?</span></h1>
+    <p class="lead">Measured across 66 real sessions: the median is <strong>$4.08</strong>, the 90th
+      percentile is <strong>$11.42</strong> — but one extreme session hit $1,278. Here's the distribution
+      and what drives the spread.</p>
+  </div>
+</header>
+
+<article>
+<section>
+  <div class="wrap">
+    <h2>The measured distribution (n=66)</h2>
+    <p>These numbers come from 66 real Claude Code sessions, measured locally with
+      <a href="/">tokenscope</a>. All sessions belong to one heavy user (the tool's own development),
+      so it's a reference set — not a census. Labelled clearly.</p>
+    <div class="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Percentile</th>
+          <th class="num">Cost (USD)</th>
+          <th class="num">Turns</th>
+          <th class="num">Peak context (tokens)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>p10</td><td class="num">$1.63</td><td class="num">15</td><td class="num">24,153</td></tr>
+        <tr><td>p25</td><td class="num">$2.10</td><td class="num">18</td><td class="num">28,466</td></tr>
+        <tr><td><strong>p50 (median)</strong></td><td class="num"><strong>$4.08</strong></td><td class="num"><strong>29</strong></td><td class="num"><strong>44,904</strong></td></tr>
+        <tr><td>p75</td><td class="num">$8.31</td><td class="num">39</td><td class="num">69,741</td></tr>
+        <tr><td>p90</td><td class="num">$11.42</td><td class="num">67</td><td class="num">86,124</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>Total across all 66 sessions: <strong>$2,650.90</strong> over <strong>4,339 turns</strong>.
+      The distribution is right-skewed — most sessions are in the $2–$9 range, but a small number of
+      very long sessions pull the average up significantly.</p>
+    <div class="callout warn">
+      <strong>Extreme outlier (n=1 detailed study):</strong> one session ran 1,270 turns, peaked at
+      ~998,000 tokens of context, and cost approximately $1,278. Read the full breakdown at
+      <a href="/study/">the anatomy study</a>.
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>What drives the cost spread?</h2>
+    <p>A Claude Code session isn't priced like a chat. On every turn, the client re-sends the entire
+      accumulated context to the model. As a session grows — reading files, running commands,
+      accumulating history — that context grows, and so does the per-turn cost.</p>
+    <p>Pooled across all 66 sessions, the spend breaks down as:</p>
+    <table>
+      <thead><tr><th>Bucket</th><th class="num">Share of total spend</th><th>What it is</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Cache read</strong></td><td class="num"><strong>60%</strong></td><td>Context re-sent every turn (the dominant line)</td></tr>
+        <tr><td>Cache write</td><td class="num">25%</td><td>New context written into cache (files opened, tool results)</td></tr>
+        <tr><td>Output</td><td class="num">15%</td><td>Tokens the model actually generated</td></tr>
+        <tr><td>Fresh input</td><td class="num">~0%</td><td>Uncached prompt tokens</td></tr>
+      </tbody>
+    </table>
+    <p>The key insight: <strong>the model writing code is only 15% of a typical bill.</strong> The
+      majority is re-sent context — paying to re-read the same files and history on every turn.</p>
+    <p>Why does session length matter so much? The cost grows roughly as
+      <em>context_size × number_of_turns × cache_read_rate</em>. Double the context and run twice
+      as many turns, and the cache-read cost is roughly 4× higher — not 2×.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Caching helps — but doesn't make it free</h2>
+    <p>Prompt caching is why long sessions don't cost 10× what a short chat does. The Anthropic
+      documented rates (verify for your tier):</p>
+    <ul>
+      <li><strong>Cache read = 0.1&times; the input rate.</strong> Re-sending 100k tokens of context
+        costs a tenth of what sending 100k fresh tokens would cost.</li>
+      <li><strong>Cache write = 1.25&times;</strong> (5-minute lifetime) or <strong>2&times;</strong>
+        (1-hour lifetime) of the input rate — a one-time cost when context is first written.</li>
+    </ul>
+    <p>The catch: 0.1× of a 400k-token context, paid on every turn of a 200-turn session, still adds
+      up to a meaningful number. Caching lowers the multiplier; it doesn't eliminate the fundamental
+      cost of long sessions.</p>
+    <p>See <a href="/claude-code-cache-cost-explained/">the full cache mechanics explainer</a> for
+      the math.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>See what your sessions actually cost</h2>
+    <p>tokenscope is a local, read-only CLI that parses your session logs and shows the cost
+      split — per session and per turn. Nothing is uploaded.</p>
+    <div class="cta">
+      <p style="margin-top:0"><strong>Run it on your own sessions:</strong></p>
+      <div class="cmd">
+        <code>npx @wartzar-bee/tokenscope</code>
+      </div>
+      <p class="small" style="margin-bottom:0">Reads <code>~/.claude/projects/**/*.jsonl</code> locally.
+        No network. No telemetry. MIT.</p>
+    </div>
+    <p>The <a href="/benchmark/">full benchmark report</a> shows per-session percentile tables and
+      per-turn attribution. The <a href="/study/">anatomy study</a> traces one extreme session
+      turn by turn.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>FAQ</h2>
+    <p class="faqq">How much does the median Claude Code session cost?</p>
+    <p class="faqa">$4.08, based on 66 real sessions. Most sessions fall between $1.63 and $11.42
+      (p10–p90). This is a single-user reference set, not a representative survey.</p>
+
+    <p class="faqq">Why did my session cost $100+?</p>
+    <p class="faqa">Outliers happen. An extreme 1,270-turn session cost $1,278 in the measured data.
+      Long sessions where the model carries hundreds of thousands of tokens re-send that context every
+      turn. A session with 500k context running for 200 turns incurs roughly
+      500k × 200 × (cache_read_price) in read cost alone. See the
+      <a href="/study/">anatomy study</a> for the full breakdown.</p>
+
+    <p class="faqq">What's the fastest way to reduce session cost?</p>
+    <p class="faqa">Start a fresh session or use <code>/compact</code> before the context grows very
+      large. Context keeps growing by default — compacting or restarting resets the per-turn
+      re-send cost. The <a href="/reduce-claude-code-bill/">cost reduction guide</a> has a concrete
+      checklist.</p>
+
+    <p class="faqq">Is the $4.08 median for Sonnet or another model?</p>
+    <p class="faqa">The sessions in the n=66 dataset were measured with tokenscope's default pricing
+      applied to the token counts in the session logs. The model used in each session affects output
+      pricing and cache rates — tokenscope applies the documented pricing for the model recorded in
+      each turn. The <a href="/benchmark/">benchmark page</a> documents the exact method.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Keep reading</h2>
+    <ul class="related">
+      <li><a href="/benchmark/"><span class="t">Claude Code cost benchmark (n=66)</span><span class="d">Full per-session percentile tables and pooled spend attribution.</span></a></li>
+      <li><a href="/study/"><span class="t">Anatomy of a $1,278 session</span><span class="d">One extreme 1,270-turn session, traced turn by turn.</span></a></li>
+      <li><a href="/why-is-claude-code-so-expensive/"><span class="t">Why is Claude Code so expensive?</span><span class="d">The context re-send mechanic explained.</span></a></li>
+      <li><a href="/reduce-claude-code-bill/"><span class="t">How to reduce your Claude Code bill</span><span class="d">Concrete checklist that targets the biggest cost lines.</span></a></li>
+      <li><a href="/claude-code-cost-long-session/"><span class="t">Why long Claude Code sessions cost disproportionately more</span><span class="d">The turns × context compounding effect.</span></a></li>
+    </ul>
+  </div>
+</section>
+</article>
+
+<footer>
+  <div class="wrap">
+    tokenscope &mdash; local, read-only Claude Code cost &amp; context attribution.
+    MIT. Not affiliated with Anthropic. &middot; <a href="/">Home</a> &middot; <a href="https://github.com/wartzar-bee/tokenscope">GitHub</a>
+  </div>
+</footer>
+</body>
+</html>

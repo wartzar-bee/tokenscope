@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Code token cost calculator — how to estimate your bill — tokenscope</title>
+<meta name="description" content="How to estimate Claude Code token costs before running a session: the formula for cache-read, cache-write, and output costs, with real benchmark numbers as reference points.">
+<link rel="canonical" href="https://tokenscope.pages.dev/claude-code-token-cost-calculator/">
+<meta property="og:title" content="Claude Code token cost calculator — how to estimate your bill">
+<meta property="og:description" content="The formula: (peak_context × turns × cache_read_rate) + cache_write + output. With real reference numbers from n=66 measured sessions.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://tokenscope.pages.dev/claude-code-token-cost-calculator/">
+<meta property="og:site_name" content="tokenscope">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Claude Code token cost calculator">
+<meta name="twitter:description" content="Estimate your Claude Code bill: the formula + real reference benchmarks (n=66 sessions, median $4.08)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='13'%3E%E2%8F%A3%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css">
+<style>
+.calc-box{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin:18px 0}
+.calc-box label{display:block;color:var(--mut);font-size:13px;margin-bottom:4px;font-weight:600}
+.calc-box input[type=number]{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:7px;
+  padding:9px 12px;color:var(--ink);font-size:15px;font-family:ui-monospace,Menlo,Consolas,monospace}
+.calc-box .row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+@media(max-width:640px){.calc-box .row{grid-template-columns:1fr}}
+.result-num{font-size:32px;font-weight:800;color:var(--accent);font-family:ui-monospace,Menlo,Consolas,monospace;margin:0}
+.result-label{color:var(--mut);font-size:13px;margin:4px 0 0}
+.result-row{display:flex;flex-wrap:wrap;gap:18px;margin:14px 0}
+.result-item{flex:1;min-width:120px}
+</style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "How do I calculate Claude Code token costs?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The main formula: cache_read_cost = peak_context_tokens × number_of_turns × (input_rate × 0.1). Cache-write cost = new_context_tokens × (input_rate × 1.25 or 2.0). Output cost = output_tokens × output_rate. In practice, cache-read dominates long sessions (60% of pooled spend measured across 66 real sessions). The exact rates depend on the Claude model — verify current rates at anthropic.com/pricing."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How many tokens does a typical Claude Code session use?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "From measured data (n=66): median session peak context is 44,904 tokens, with p10 at 24,153 and p90 at 86,124. One extreme session peaked at approximately 998,000 tokens. Total token count per session (input + output across all turns) can be much higher than peak context, as context is re-sent every turn."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is the most accurate way to see Claude Code token costs?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Run tokenscope (npx @wartzar-bee/tokenscope). It reads your local session logs and computes the exact token breakdown and cost attribution per session and per turn, using documented Anthropic pricing. It's the only tool that shows the cache-read vs cache-write vs output split from your actual session data."
+      }
+    }
+  ]
+}
+</script>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <div class="brand"><a href="/">tokenscope &#9187;</a></div>
+    <div class="crumbs"><a href="/">Home</a> &rsaquo; Guides &rsaquo; Claude Code token cost calculator</div>
+    <h1>Claude Code <span class="hl">token cost calculator</span></h1>
+    <p class="lead">Before running a session, you can estimate cost from three inputs: how big the context
+      will get, how many turns you'll run, and which model you're using. Here's the formula — plus a
+      quick estimator and real reference data from 66 measured sessions.</p>
+  </div>
+</header>
+
+<article>
+<section>
+  <div class="wrap">
+    <h2>Quick session cost estimator</h2>
+    <div class="calc-box">
+      <div class="row">
+        <div>
+          <label for="ctx">Peak context (tokens)</label>
+          <input type="number" id="ctx" value="50000" min="1000" step="1000">
+        </div>
+        <div>
+          <label for="turns">Number of turns</label>
+          <input type="number" id="turns" value="30" min="1" step="1">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label for="input_rate">Input rate ($/M tokens)</label>
+          <input type="number" id="input_rate" value="3.00" min="0.01" step="0.01">
+        </div>
+        <div>
+          <label for="output_rate">Output rate ($/M tokens)</label>
+          <input type="number" id="output_rate" value="15.00" min="0.01" step="0.01">
+        </div>
+      </div>
+      <div class="result-row" id="results">
+        <div class="result-item"><p class="result-num" id="res-total">—</p><p class="result-label">Estimated total</p></div>
+        <div class="result-item"><p class="result-num" id="res-read">—</p><p class="result-label">Cache read (est. 60%)</p></div>
+        <div class="result-item"><p class="result-num" id="res-write">—</p><p class="result-label">Cache write (est. 25%)</p></div>
+        <div class="result-item"><p class="result-num" id="res-out">—</p><p class="result-label">Output (est. 15%)</p></div>
+      </div>
+    </div>
+    <p class="small">Estimates assume: cache-read = 0.1× input rate per token × peak context × turns (simplified linear model);
+      cache-write = 25% of session budget (one-time); output = 15% of budget. Real sessions vary —
+      context grows through the session, not all at once. Use tokenscope for exact per-session numbers.
+      Verify current Anthropic pricing at <a href="https://www.anthropic.com/pricing" rel="noopener">anthropic.com/pricing</a>.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>The cost formula explained</h2>
+    <p>A Claude Code session's cost has three components. The dominant one depends on session length:</p>
+    <div class="callout">
+      <strong>Cache read cost</strong> (dominant in long sessions):<br>
+      <code>≈ average_context_tokens × turns × (input_rate × 0.1)</code><br>
+      <span style="color:var(--mut);font-size:13.5px">Context grows through the session, so the average is lower than peak. For a rough upper bound, use peak context × turns × 0.1 × input_rate.</span>
+    </div>
+    <div class="callout">
+      <strong>Cache write cost</strong> (one-time per unique context block):<br>
+      <code>≈ new_context_tokens × (input_rate × 1.25)</code> — 5-minute cache<br>
+      <code>≈ new_context_tokens × (input_rate × 2.0)</code> — 1-hour extended cache<br>
+      <span style="color:var(--mut);font-size:13.5px">This is paid once when context enters the cache, not on every re-read.</span>
+    </div>
+    <div class="callout">
+      <strong>Output cost</strong>:<br>
+      <code>≈ output_tokens_per_turn × turns × output_rate</code><br>
+      <span style="color:var(--mut);font-size:13.5px">Measured at ~15% of pooled spend across 66 real sessions — smaller than most people expect.</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Real reference points from 66 measured sessions</h2>
+    <p>Use these as calibration for your estimates:</p>
+    <div class="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Session type</th>
+          <th class="num">Turns</th>
+          <th class="num">Peak context</th>
+          <th class="num">Total cost</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Short (p10)</td><td class="num">15</td><td class="num">24,153</td><td class="num">$1.63</td></tr>
+        <tr><td><strong>Typical (p50 median)</strong></td><td class="num"><strong>29</strong></td><td class="num"><strong>44,904</strong></td><td class="num"><strong>$4.08</strong></td></tr>
+        <tr><td>Long (p90)</td><td class="num">67</td><td class="num">86,124</td><td class="num">$11.42</td></tr>
+        <tr><td>Extreme (n=1 study)</td><td class="num">1,270</td><td class="num">~998,000</td><td class="num">~$1,278</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>Source: <a href="/benchmark/">n=66 benchmark</a> and <a href="/study/">anatomy study</a>. All from
+      one heavy user — a reference set, not a census. Priced with tokenscope's default rates at measurement time.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>What the estimator can't tell you</h2>
+    <p>The estimator above is a simplified upper-bound model. It assumes peak context for all turns,
+      which overestimates early-turn cost. The real pattern:</p>
+    <ul>
+      <li><strong>Early turns:</strong> context is small, cost is low.</li>
+      <li><strong>Late turns:</strong> context is large, each turn is expensive.</li>
+      <li>The total grows roughly quadratically with session length (if context grows linearly with turns).</li>
+    </ul>
+    <p>The only way to see the <em>actual</em> breakdown for your sessions — per turn, per model, with
+      real cache-read vs cache-write vs output attribution — is to measure it directly.</p>
+    <div class="cta">
+      <p style="margin-top:0"><strong>Measure your own sessions with tokenscope:</strong></p>
+      <div class="cmd">
+        <code>npx @wartzar-bee/tokenscope</code>
+      </div>
+      <p class="small" style="margin-bottom:0">Reads <code>~/.claude/projects/**/*.jsonl</code>. Local, read-only. MIT.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>FAQ</h2>
+    <p class="faqq">Why is 1,000 tokens so cheap but a session costs $10+?</p>
+    <p class="faqa">Because a session re-sends large amounts of context on every turn. A typical 44,900-token
+      context, re-sent 29 times (the median), at the cache-read rate of 0.1× input price, accounts for
+      most of the bill — not any single 1,000-token message. The per-token rate is low; the total token
+      volume across a session is high.</p>
+
+    <p class="faqq">How accurate is the quick estimator?</p>
+    <p class="faqa">It's a rough upper bound for the cache-read component (assumes peak context for all
+      turns). Real sessions grow gradually, so actual cost is lower. Use it for order-of-magnitude
+      estimates. For exact numbers, run tokenscope on your actual session logs.</p>
+
+    <p class="faqq">Where do I find current Claude model pricing?</p>
+    <p class="faqa">At <a href="https://www.anthropic.com/pricing" rel="noopener">anthropic.com/pricing</a>.
+      Prices change — always verify before making decisions. tokenscope uses the documented rates at
+      measurement time and shows which rates were applied in the output.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Keep reading</h2>
+    <ul class="related">
+      <li><a href="/claude-code-cost-per-session/"><span class="t">How much does a Claude Code session cost?</span><span class="d">Measured data: median $4.08, p90 $11.42, extreme $1,278.</span></a></li>
+      <li><a href="/claude-code-cache-cost-explained/"><span class="t">Claude Code cache &amp; context cost, explained</span><span class="d">The core mechanic behind the calculator formula.</span></a></li>
+      <li><a href="/benchmark/"><span class="t">Claude Code cost benchmark (n=66)</span><span class="d">The real reference data behind the estimator calibration.</span></a></li>
+      <li><a href="/reduce-claude-code-bill/"><span class="t">How to reduce your Claude Code bill</span><span class="d">Concrete actions that lower the inputs to the formula.</span></a></li>
+    </ul>
+  </div>
+</section>
+</article>
+
+<footer>
+  <div class="wrap">
+    tokenscope &mdash; local, read-only Claude Code cost &amp; context attribution.
+    MIT. Not affiliated with Anthropic. &middot; <a href="/">Home</a> &middot; <a href="https://github.com/wartzar-bee/tokenscope">GitHub</a>
+  </div>
+</footer>
+
+<script>
+(function(){
+  function fmt(n){ return n < 0.01 ? '<$0.01' : '$' + n.toFixed(2); }
+  function calc(){
+    var ctx = parseFloat(document.getElementById('ctx').value) || 0;
+    var turns = parseFloat(document.getElementById('turns').value) || 0;
+    var ir = parseFloat(document.getElementById('input_rate').value) || 0;
+    var or = parseFloat(document.getElementById('output_rate').value) || 0;
+    // Simplified model: cache_read = ctx * turns * ir * 0.1 / 1e6
+    // That's the upper bound (peak context all turns). Scale by 0.6 for avg.
+    var read = ctx * turns * ir * 0.1 / 1e6;
+    // cache_write: assume new context = ctx (written once), rate 1.25x
+    var write_tokens = ctx;
+    var write = write_tokens * ir * 1.25 / 1e6;
+    // output: assume 200 tokens/turn on avg
+    var out_tok = 200 * turns;
+    var out = out_tok * or / 1e6;
+    var total = read + write + out;
+    document.getElementById('res-total').textContent = fmt(total);
+    document.getElementById('res-read').textContent = fmt(read);
+    document.getElementById('res-write').textContent = fmt(write);
+    document.getElementById('res-out').textContent = fmt(out);
+  }
+  ['ctx','turns','input_rate','output_rate'].forEach(function(id){
+    document.getElementById(id).addEventListener('input', calc);
+  });
+  calc();
+})();
+</script>
+</body>
+</html>

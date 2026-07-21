@@ -127,6 +127,10 @@
     <p class="small" style="margin-top:16px">The fix is usually mundane: trim what stays in context — <code>/compact</code> or a fresh
       session when the window gets large, and don't keep huge files/tool output resident. tokenscope's
       insights point at the specific turns and tools doing the damage.</p>
+    <ul class="related" style="margin-top:18px">
+      <li><a href="benchmark/"><span class="t">Cost benchmark: what a Claude Code session really costs (n=66)</span><span class="d">66 real sessions, measured: median ~$4.08, p90 ~$11.42. The typical session re-sends ~24% of spend as context; pooled it's 60% — cost concentrates in a few long sessions. Percentile tables + the command to compare your own.</span></a></li>
+      <li><a href="study/"><span class="t">Data study: Anatomy of a Claude Code session — where the money actually goes</span><span class="d">One real session, measured: ~$1,278 over ~1,270 turns; 66% went to re-sent context, only 14% to the model writing. Charts + full breakdown (n=1, honest).</span></a></li>
+    </ul>
   </div>
 </section>
 

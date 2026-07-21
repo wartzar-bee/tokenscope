@@ -3,9 +3,6 @@
 **See what your AI-coding session actually cost — and what's eating your context.**
 A local, read-only CLI that parses your Claude Code session logs and shows where the money goes: model output vs. context being **re-sent every turn** (the hidden 60%+ of most bills).
 
-
-> **Why this exists:** I put an AI agent on a timer and it burned 136M tokens overnight, most of it re-reading its own context. tokenscope is how I found that. [Read the postmortem →](https://dev.to/wartzarbee/i-put-an-ai-agent-on-a-timer-overnight-it-burned-136m-tokens-doing-almost-nothing-2ae2)
-
 ```
 $ npx @wartzar-bee/tokenscope
 
@@ -31,10 +28,17 @@ $ npx @wartzar-bee/tokenscope
 ## Why
 Agentic coding (Claude Code, etc.) produces surprise bills, and the cause is mundane: as a session grows, the **whole context is re-sent every turn**, so cost balloons even when the model writes little. Existing dashboards show *totals*; tokenscope shows the **attribution** — output vs. cache-read vs. cache-write vs. fresh input, the per-turn context-growth curve, cost by model, subagent spend, and which tools fill your context — with concrete "trim this" insights.
 
+## Try it in 10 seconds (no Claude Code logs needed)
+```
+npx @wartzar-bee/tokenscope --demo
+```
+Runs on a bundled sample session so you see the full report before pointing it at your own logs — no setup, nothing to configure. (The sample is synthetic, for demonstration.)
+
 ## Install / run
 No install — runs via npx:
 ```
 npx @wartzar-bee/tokenscope               # your most recent Claude Code session
+npx @wartzar-bee/tokenscope --demo        # a bundled sample session — no logs needed
 npx @wartzar-bee/tokenscope --all         # aggregate every session
 npx @wartzar-bee/tokenscope <file|dir>    # a specific session .jsonl
 npx @wartzar-bee/tokenscope --json        # machine-readable

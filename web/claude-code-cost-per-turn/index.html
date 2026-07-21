@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Code cost per turn — what each message costs — tokenscope</title>
+<meta name="description" content="Each turn in a Claude Code session is priced on the context the model carries at that moment — not just the new message. Here's how per-turn cost grows, what the typical range looks like, and when a single turn can cost more than an entire short session.">
+<link rel="canonical" href="https://tokenscope.pages.dev/claude-code-cost-per-turn/">
+<meta property="og:title" content="Claude Code cost per turn — what each message costs">
+<meta property="og:description" content="Each turn re-sends the full context. Median session: 29 turns / $4.08 total. How per-turn cost grows and what to do about it.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://tokenscope.pages.dev/claude-code-cost-per-turn/">
+<meta property="og:site_name" content="tokenscope">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Claude Code cost per turn">
+<meta name="twitter:description" content="Each turn re-sends the entire context. How per-turn cost grows through a session — and why late turns cost more than early ones.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='13'%3E%E2%8F%A3%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What does each turn in Claude Code cost?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Each turn is priced on (1) re-sending the full cached context (cache-read, 0.1x input price), (2) any new context written this turn (cache-write, 1.25x–2x input price), and (3) the model's output tokens. Early in a session, context is small so each turn is cheap. Late in a long session, a 400k-token context re-sent at 0.1x input price per turn can cost significantly more than the model's actual output."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Why does each turn get more expensive as a session continues?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Because context accumulates. Each turn adds files read, tool outputs, and model replies to the cache. The next turn re-sends everything accumulated so far. A session that starts at 10,000 tokens might reach 200,000 tokens by turn 50, meaning each later turn re-sends 20x more context than the early turns."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How many turns does a typical Claude Code session have?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Based on measured data from 66 real sessions: median 29 turns, p10 is 15 turns, p90 is 67 turns. One extreme session ran 1,270 turns."
+      }
+    }
+  ]
+}
+</script>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <div class="brand"><a href="/">tokenscope &#9187;</a></div>
+    <div class="crumbs"><a href="/">Home</a> &rsaquo; Guides &rsaquo; Claude Code cost per turn</div>
+    <h1>Claude Code <span class="hl">cost per turn</span></h1>
+    <p class="lead">Each turn in a Claude Code session isn't priced just on the new message. It's priced
+      on everything the model has to carry — the whole accumulated context — re-sent from scratch
+      every time you ask a question.</p>
+  </div>
+</header>
+
+<article>
+<section>
+  <div class="wrap">
+    <h2>Why turns get more expensive as a session runs longer</h2>
+    <p>LLMs are stateless. The client sends the full conversation — your messages, every file the model
+      has read, every tool result, every prior reply — with each API request. Early in a session that
+      payload is small. Later it can be hundreds of thousands of tokens.</p>
+    <p>The pricing for each turn breaks into three parts:</p>
+    <table>
+      <thead><tr><th>Component</th><th>Rate</th><th>What contributes</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Cache read</strong></td><td>0.1&times; input price</td><td>Everything already in the cache, re-sent this turn. Grows with every turn.</td></tr>
+        <tr><td>Cache write</td><td>1.25–2&times; input price</td><td>New context entering the cache this turn (a new file, a large tool result). One-time per unique context.</td></tr>
+        <tr><td>Output</td><td>Output price</td><td>Tokens the model generated — code, explanations. Usually the smallest component on later turns.</td></tr>
+      </tbody>
+    </table>
+    <div class="callout warn">
+      <strong>The counter-intuitive part:</strong> a turn where the model writes just two lines of code
+      can cost more than an early turn where it read a large file — because the later turn re-sends a
+      context that has since grown to hundreds of thousands of tokens.
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>What the numbers look like in practice</h2>
+    <p>From the <a href="/benchmark/">n=66 benchmark</a>:</p>
+    <table>
+      <thead><tr><th>Percentile</th><th class="num">Turns per session</th><th class="num">Peak context</th><th class="num">Session cost</th></tr></thead>
+      <tbody>
+        <tr><td>p10</td><td class="num">15</td><td class="num">24,153</td><td class="num">$1.63</td></tr>
+        <tr><td><strong>p50 (median)</strong></td><td class="num"><strong>29</strong></td><td class="num"><strong>44,904</strong></td><td class="num"><strong>$4.08</strong></td></tr>
+        <tr><td>p90</td><td class="num">67</td><td class="num">86,124</td><td class="num">$11.42</td></tr>
+        <tr><td>Extreme (n=1)</td><td class="num">1,270</td><td class="num">~998,000</td><td class="num">~$1,278</td></tr>
+      </tbody>
+    </table>
+    <p>For the extreme 1,270-turn session: the average cost per turn was roughly $1.01, but that masks
+      the progression — early turns were cheap, while later turns carrying ~998k tokens of context cost
+      significantly more each. The full turn-by-turn breakdown is in the <a href="/study/">anatomy study</a>.</p>
+    <p>Pooled across all 66 sessions, <strong>60% of total spend was cache-read</strong> — re-sending
+      accumulated context — versus 15% on output tokens (what the model actually wrote).</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>The compounding effect: turns × context</h2>
+    <p>The cost of a session grows roughly as:</p>
+    <div class="callout">
+      <code>total_cost ≈ Σ(context_size_at_turn_t × cache_read_rate) + cache_writes + outputs</code>
+    </div>
+    <p>Because context grows monotonically through a session (under normal usage), later turns are
+      systematically more expensive than earlier ones. This is the quadratic-ish growth that makes
+      long sessions expensive disproportionately:</p>
+    <ul>
+      <li>A 10-turn session with 50k context peak might cost $1–2.</li>
+      <li>A 100-turn session with 200k context peak doesn't cost 10× more — it can cost 40–50× more,
+        because both the context size <em>and</em> the number of turns it's re-sent at have grown.</li>
+    </ul>
+    <p>This is the core reason the <a href="/claude-code-cost-long-session/">long session cost page</a>
+      treats session length as the primary cost driver.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>How to reduce per-turn cost</h2>
+    <p>The main lever is keeping the context the model carries small. Two approaches:</p>
+    <ol class="steps">
+      <li><strong>Use <code>/compact</code> proactively.</strong> Compacting replaces the accumulated
+        context with a shorter summary. The next turn re-sends the summary, not the full history.
+        <a href="/when-to-use-compact-claude-code/">When to use /compact</a> explains the trade-off.</li>
+      <li><strong>Start a fresh session for a new task.</strong> A new session starts with a small
+        context. Moving to a fresh session after completing a significant subtask avoids
+        carrying all that previous context into the next one.</li>
+    </ol>
+    <p>See the <a href="/reduce-claude-code-bill/">full cost reduction checklist</a> for a prioritized
+      list of actions.</p>
+    <div class="cta">
+      <p style="margin-top:0"><strong>See the per-turn breakdown in your own sessions:</strong></p>
+      <div class="cmd">
+        <code>npx @wartzar-bee/tokenscope</code>
+      </div>
+      <p class="small" style="margin-bottom:0">Local, read-only. Reads <code>~/.claude/projects/**/*.jsonl</code>.
+        No upload. MIT.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>FAQ</h2>
+    <p class="faqq">Does every turn cost the same?</p>
+    <p class="faqa">No. Each turn costs more than the previous one (in a growing session), because the
+      context re-sent this turn includes everything from all prior turns. Early turns are cheap; late
+      turns in a long session can be much more expensive.</p>
+
+    <p class="faqq">Why is output such a small part of the bill?</p>
+    <p class="faqa">Measured data shows output is ~15% of pooled spend across 66 sessions. Output tokens
+      are only the text the model generates in that turn. The context — everything the model reads before
+      it writes — is typically much larger, even discounted at 0.1× via caching.</p>
+
+    <p class="faqq">Can I see the cost of each individual turn?</p>
+    <p class="faqa">Yes. Running <code>npx @wartzar-bee/tokenscope</code> shows a per-turn context-growth
+      curve and the cost attribution for each turn in your session.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Keep reading</h2>
+    <ul class="related">
+      <li><a href="/claude-code-cost-per-session/"><span class="t">How much does a Claude Code session cost?</span><span class="d">Median $4.08, p90 $11.42 — the full distribution.</span></a></li>
+      <li><a href="/claude-code-cost-long-session/"><span class="t">Why long Claude Code sessions cost so much</span><span class="d">The compounding effect of turns × context.</span></a></li>
+      <li><a href="/when-to-use-compact-claude-code/"><span class="t">When to use /compact</span><span class="d">When compacting saves money and when a fresh session is better.</span></a></li>
+      <li><a href="/study/"><span class="t">Anatomy of a $1,278 session</span><span class="d">One 1,270-turn session traced turn by turn.</span></a></li>
+      <li><a href="/benchmark/"><span class="t">Claude Code cost benchmark (n=66)</span><span class="d">Full session distribution and pooled spend attribution.</span></a></li>
+    </ul>
+  </div>
+</section>
+</article>
+
+<footer>
+  <div class="wrap">
+    tokenscope &mdash; local, read-only Claude Code cost &amp; context attribution.
+    MIT. Not affiliated with Anthropic. &middot; <a href="/">Home</a> &middot; <a href="https://github.com/wartzar-bee/tokenscope">GitHub</a>
+  </div>
+</footer>
+</body>
+</html>

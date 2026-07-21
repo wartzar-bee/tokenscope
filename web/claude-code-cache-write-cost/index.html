@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Code cache write cost — what you pay when context first enters the cache — tokenscope</title>
+<meta name="description" content="Cache writes (prompt cache creation) cost 1.25x or 2x the input rate — more expensive than fresh input. But they're paid once per unique context block, then re-read cheaply. Here's how cache write cost works and how to reduce it.">
+<link rel="canonical" href="https://tokenscope.pages.dev/claude-code-cache-write-cost/">
+<meta property="og:title" content="Claude Code cache write cost explained">
+<meta property="og:description" content="Cache write = 1.25x–2x input rate, paid once per unique context. 25% of pooled session spend in measured data (n=66). Here's how it works.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://tokenscope.pages.dev/claude-code-cache-write-cost/">
+<meta property="og:site_name" content="tokenscope">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Claude Code cache write cost explained">
+<meta name="twitter:description" content="Cache-write = 1.25x–2x input rate (25% of measured session spend). Paid once per unique context block. Here's the mechanic.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='13'%3E%E2%8F%A3%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is cache write cost in Claude Code?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Cache write (also called cache creation or prompt cache creation) is the cost of writing new context into the prompt cache. It's charged when context enters the cache for the first time — a file read, a large tool output, the initial system prompt. The rate is 1.25x the input price for a 5-minute cache, or 2x for an extended 1-hour cache. Once written, that same context block is re-read at only 0.1x the input rate on subsequent turns."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How much of Claude Code spend is cache writes?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Based on measured data from 66 real Claude Code sessions, cache-write (cache creation) accounts for approximately 25% of pooled total spend. The largest fraction (60%) is cache-read (re-sent context). Output is ~15%. Cache-write is a one-time cost per unique context block — the investment that enables cheaper subsequent reads."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is it worth paying the higher cache write rate?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes, for context that will be re-read multiple times. The break-even is at 12.5 re-reads for the 5-minute cache (write at 1.25x vs read at 0.1x: 1.25 / 0.1 = 12.5). If a context block is used in more than ~13 turns, the cache-write investment has paid off. For most Claude Code sessions with 29+ turns and stable context, writing to cache is much cheaper than paying full input rate on every turn."
+      }
+    }
+  ]
+}
+</script>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <div class="brand"><a href="/">tokenscope &#9187;</a></div>
+    <div class="crumbs"><a href="/">Home</a> &rsaquo; Guides &rsaquo; Cache write cost</div>
+    <h1>Claude Code <span class="hl">cache write cost</span></h1>
+    <p class="lead">Cache writes are the one-time cost of writing new context into the prompt cache —
+      paid at 1.25× or 2× the input rate. They're more expensive than reads, but it's an investment:
+      after the write, re-reads cost just 0.1× the input rate.</p>
+  </div>
+</header>
+
+<article>
+<section>
+  <div class="wrap">
+    <h2>What triggers a cache write</h2>
+    <p>Anthropic's prompt cache stores context at stable token boundaries. A cache write happens when
+      new tokens are added to the cache for the first time — typically:</p>
+    <ul>
+      <li><strong>Opening a file.</strong> The file's content is added to the context. First time
+        this exact content appears at this position → cache write.</li>
+      <li><strong>Tool output arriving.</strong> A command result or search output is added to the
+        context for the first time.</li>
+      <li><strong>The initial system prompt.</strong> Claude Code's system prompt and tool definitions
+        are written to cache at the start of a session.</li>
+    </ul>
+    <p>Once a block is in the cache, subsequent turns that include it pay the read rate (0.1×) instead
+      of the write rate (1.25× or 2×). The write is a one-time cost; the read is paid on every turn
+      that includes that block.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>The two cache write rates</h2>
+    <table>
+      <thead><tr><th>Cache type</th><th class="num">Rate</th><th>TTL</th><th>When used</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Standard</strong></td><td class="num">1.25× input rate</td><td>5 minutes</td><td>Default; short-lived sessions</td></tr>
+        <tr><td><strong>Extended</strong></td><td class="num">2× input rate</td><td>1 hour</td><td>Longer-lived sessions; reduces re-write cost on slow interactions</td></tr>
+      </tbody>
+    </table>
+    <div class="callout warn">
+      <strong>Important:</strong> verify current rates at
+      <a href="https://www.anthropic.com/pricing" rel="noopener">anthropic.com/pricing</a>. Rates
+      can change. tokenscope applies the documented rates at measurement time.
+    </div>
+    <p>The extended cache costs more per write but protects against re-writes in slow sessions —
+      where a long pause between turns would otherwise expire the 5-minute cache, forcing the context
+      to be re-written on the next turn.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Cache write as 25% of session spend</h2>
+    <p>From the <a href="/benchmark/">n=66 benchmark</a>, pooled across all sessions:</p>
+    <table>
+      <thead><tr><th>Bucket</th><th class="num">Pooled share</th></tr></thead>
+      <tbody>
+        <tr><td>Cache read (re-sent context)</td><td class="num">60%</td></tr>
+        <tr><td><strong>Cache write (new context → cache)</strong></td><td class="num"><strong>25%</strong></td></tr>
+        <tr><td>Output</td><td class="num">15%</td></tr>
+        <tr><td>Fresh input</td><td class="num">~0%</td></tr>
+      </tbody>
+    </table>
+    <p>Cache-write is a significant fraction of spend, but it's the investment that enables the
+      cheap re-reads. In a 60-turn session, writing 50k tokens to cache at 1.25× once, then
+      reading those 50k tokens 60 times at 0.1×, the math is:</p>
+    <ul>
+      <li>Write cost: 50,000 × 1.25 = 62,500 token-equivalents</li>
+      <li>Read cost: 50,000 × 60 × 0.1 = 300,000 token-equivalents</li>
+    </ul>
+    <p>The write is 17% of the total — roughly the 25% benchmark figure, which makes sense given
+      that longer sessions have proportionally more reads vs the initial write.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>The break-even calculation</h2>
+    <p>A cache write at 1.25× is worth it if you'll re-read that context more than 12.5 times
+      (the write-vs-read break-even: 1.25 / 0.1 = 12.5). For the extended cache (2×), the
+      break-even is 20 re-reads.</p>
+    <p>In practice, any Claude Code session longer than ~15–20 turns on the same stable context
+      has already broken even on the cache investment. The benchmark median is 29 turns — well
+      above the 5-minute cache break-even. Cache writes are almost always net-positive for
+      agentic coding sessions.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>When cache writes are wasteful</h2>
+    <p>Cache writes become expensive relative to their value when:</p>
+    <ul>
+      <li><strong>The context expires before being re-read enough.</strong> If a long pause between
+        turns causes the 5-minute cache to expire, the context is re-written on the next turn
+        (another write at 1.25×) — but it may only be re-read 2–3 times before another expiry.
+        Below the break-even, the write cost is net-negative vs paying fresh input.</li>
+      <li><strong>Context is written then not re-read.</strong> If a file is opened, the context
+        is written at 1.25×, but the session ends shortly after without many subsequent turns,
+        the write cost isn't recovered through re-reads.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>See cache write attribution in your sessions</h2>
+    <div class="cta">
+      <p style="margin-top:0"><strong>tokenscope shows per-session cache-write vs cache-read split:</strong></p>
+      <div class="cmd">
+        <code>npx @wartzar-bee/tokenscope</code>
+      </div>
+      <p class="small" style="margin-bottom:0">Local, read-only. No upload. Reads <code>~/.claude/projects/**/*.jsonl</code>. MIT.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>FAQ</h2>
+    <p class="faqq">Why does cache write cost more than the regular input rate?</p>
+    <p class="faqa">Because Anthropic needs to store and index the context on their infrastructure
+      to serve it cheaply on subsequent reads. The higher write rate covers that storage/indexing
+      cost. The pay-off is the 0.1× re-read rate on subsequent turns.</p>
+
+    <p class="faqq">Can I reduce cache write costs?</p>
+    <p class="faqa">Somewhat. Keeping context stable (not restructuring it frequently) reduces
+      re-writes. Avoiding opening files that aren't needed for the current turn avoids unnecessary
+      writes. But cache-write at 25% of session spend is an expected cost of agentic coding — it's
+      the investment that makes the 60% cache-read cost affordable.</p>
+
+    <p class="faqq">What's the difference between cache_creation_input_tokens and cache_read_input_tokens?</p>
+    <p class="faqa">These are the raw fields in Anthropic's API usage object for each call.
+      <code>cache_creation_input_tokens</code> is the count of tokens written to cache this turn
+      (charged at 1.25×–2×). <code>cache_read_input_tokens</code> is the count of tokens served
+      from cache this turn (charged at 0.1×). tokenscope reads both from your session logs and
+      uses them to compute the exact spend split.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Keep reading</h2>
+    <ul class="related">
+      <li><a href="/claude-code-cache-cost-explained/"><span class="t">Claude Code cache &amp; context cost, explained</span><span class="d">The full mechanic: read, write, and how they combine on a long session.</span></a></li>
+      <li><a href="/claude-code-cache-hit-rate/"><span class="t">Claude Code cache hit rate</span><span class="d">What 83% efficiency means and what drives it up or down.</span></a></li>
+      <li><a href="/benchmark/"><span class="t">Claude Code cost benchmark (n=66)</span><span class="d">The full spend attribution including the 25% cache-write slice.</span></a></li>
+      <li><a href="/reduce-claude-code-bill/"><span class="t">How to reduce your Claude Code bill</span><span class="d">Prioritized checklist — cache management included.</span></a></li>
+    </ul>
+  </div>
+</section>
+</article>
+
+<footer>
+  <div class="wrap">
+    tokenscope &mdash; local, read-only Claude Code cost &amp; context attribution.
+    MIT. Not affiliated with Anthropic. &middot; <a href="/">Home</a> &middot; <a href="https://github.com/wartzar-bee/tokenscope">GitHub</a>
+  </div>
+</footer>
+</body>
+</html>

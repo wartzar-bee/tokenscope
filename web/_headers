@@ -1,0 +1,18 @@
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  X-Frame-Options: DENY
+  Permissions-Policy: interest-cohort=(), browsing-topics=()
+  Cache-Control: public, max-age=3600, s-maxage=86400
+
+/*.html
+  Cache-Control: public, max-age=3600, s-maxage=86400
+
+/style.css
+  Cache-Control: public, max-age=604800, s-maxage=604800, immutable
+
+/app.js
+  Cache-Control: public, max-age=604800, s-maxage=604800, immutable
+
+/card/card.js
+  Cache-Control: public, max-age=604800, s-maxage=604800, immutable

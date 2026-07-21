@@ -1,4 +1,57 @@
 User-agent: *
 Allow: /
 
+# ── 2026-07-19 CORRECTION ───────────────────────────────────────────────────────
+# This file previously blocked ChatGPT-User and PerplexityBot along with the bulk
+# training crawlers. That silently defeated our own AEO strategy: we published this
+# site to be CITED by answer engines, then told the agents that do the citing to go
+# away. Measured result: 0/10 citations (reports/aeo-ledger.jsonl).
+#
+# The original block was NOT unreasonable — it followed L-039, where bot polling
+# (~80k/day) burned a shared Cloudflare limit and threatened live ventures. So the
+# distinction that matters is preserved:
+#
+#   RETRIEVAL agents  — fetch one page, on demand, because a HUMAN just asked a
+#                       question. Low volume. Blocking them = choosing not to be
+#                       cited. These are now ALLOWED.
+#   TRAINING crawlers — bulk, repeated, whole-site. This is the traffic L-039 was
+#                       about. Still blocked; that call can be revisited separately,
+#                       and it does not affect live citation.
+# ────────────────────────────────────────────────────────────────────────────────
+
+# Live retrieval — allowed, this is how we get cited
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+# Bulk training crawlers — still blocked (L-039 bandwidth incident)
+User-agent: GPTBot
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
+
+User-agent: PetalBot
+Disallow: /
+
 Sitemap: https://tokenscope.pages.dev/sitemap.xml

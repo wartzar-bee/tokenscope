@@ -23,6 +23,33 @@
     });
   };
 
+  // ---- benchmark reference (mirror src/benchmark.mjs) — shipped/offline comparison ----
+  var BENCHMARK = {
+    n: 66, asOf: "2026-05-29",
+    costUsd: { p10: 1.63, p25: 2.10, p50: 4.08, p75: 8.31, p90: 11.42 },
+    resentPct: { p10: 14, p25: 19, p50: 24, p75: 31, p90: 46 },
+    cacheEff: { p10: 69, p25: 77, p50: 83, p75: 87, p90: 94 }
+  };
+  function percentileOf(x, bp) {
+    var pts = [[10, bp.p10], [25, bp.p25], [50, bp.p50], [75, bp.p75], [90, bp.p90]];
+    if (x <= pts[0][1]) return Math.max(1, Math.round((10 * x) / (pts[0][1] || 1)));
+    if (x >= pts[4][1]) { var over = (x - pts[4][1]) / (pts[4][1] || 1); return Math.min(99, 90 + Math.round(9 * Math.min(1, over))); }
+    for (var i = 0; i < 4; i++) {
+      var pa = pts[i][0], va = pts[i][1], pb = pts[i + 1][0], vb = pts[i + 1][1];
+      if (x >= va && x <= vb) { var t = vb === va ? 0 : (x - va) / (vb - va); return Math.round(pa + t * (pb - pa)); }
+    }
+    return 50;
+  }
+  function benchmarkOf(s) {
+    return {
+      ref: { n: BENCHMARK.n, asOf: BENCHMARK.asOf },
+      median: { costUsd: BENCHMARK.costUsd.p50, resentPct: BENCHMARK.resentPct.p50, cacheEff: BENCHMARK.cacheEff.p50 },
+      costPctile: percentileOf(s.totalCost, BENCHMARK.costUsd),
+      resentPctile: percentileOf(s.split.cacheRead.pct, BENCHMARK.resentPct),
+      cacheEffPctile: percentileOf(s.cacheEfficiency, BENCHMARK.cacheEff)
+    };
+  }
+
   // ---- privacy-safe summary (mirror src/share.mjs:shareSummary) ----
   function shareSummary(a) {
     var b = a.breakdown || {};
@@ -38,7 +65,7 @@
     var headline = (a.totalCost > 0)
       ? resentPct + "% of this Claude Code session's spend was re-sent (cached) context."
       : "No measurable cost in this session.";
-    return {
+    var summary = {
       tool: "tokenscope",
       totalCost: r2(a.totalCost || 0),
       turns: a.turns || 0,
@@ -48,6 +75,8 @@
       models: Object.keys(a.byModel || {}),
       headline: headline
     };
+    summary.benchmark = (a.totalCost > 0) ? benchmarkOf(summary) : null;
+    return summary;
   }
 
   // ---- markdown (mirror src/share.mjs:shareMarkdown) ----
@@ -77,6 +106,14 @@
     L.push("");
     L.push("Peak context ~" + ktok(s.context.peak) + " tokens (avg " + ktok(s.context.avg) + "). Cache efficiency " + s.cacheEfficiency + "%.");
     L.push("");
+    if (s.benchmark) {
+      var bm = s.benchmark;
+      L.push("**How this compares** — vs " + bm.ref.n + " real sessions ([benchmark](https://tokenscope.pages.dev/benchmark/), measured " + bm.ref.asOf + "; a reference set, not a census):");
+      L.push("- Cost " + usd(s.totalCost) + " — bigger than ~" + bm.costPctile + "% of measured sessions (median " + usd(bm.median.costUsd) + ")");
+      L.push("- Cache efficiency " + s.cacheEfficiency + "% — more efficient than ~" + bm.cacheEffPctile + "% (median " + bm.median.cacheEff + "%)");
+      L.push("- Re-sent context " + s.split.cacheRead.pct + "% — median session " + bm.median.resentPct + "%");
+      L.push("");
+    }
     L.push("_Generated locally by [tokenscope](https://github.com/wartzar-bee/tokenscope) — `npx @wartzar-bee/tokenscope --share`. Read-only, no upload; numbers only, no paths or content._");
     return L.join("\n");
   }
@@ -84,7 +121,7 @@
   // ---- SVG card (mirror src/share.mjs:shareCardSVG) ----
   function shareCardSVG(a) {
     var s = shareSummary(a);
-    var W = 600, H = 340;
+    var W = 600, H = 410; // extra height for CTA pill (mirrors src/share.mjs)
     var segs = [
       { key: "output", label: "output", color: "#22d3ee" },
       { key: "cacheRead", label: "re-sent ctx", color: "#fbbf24" },
@@ -111,6 +148,17 @@
       lx += 28 + chip.length * 7.4;
       if (lx > W - 120) { lx = barX; ly += 24; }
     });
+    var b = s.benchmark;
+    var insight = b
+      ? esc(s.split.cacheRead.pct) + '% of spend was re-sent context  ·  median session ' + esc(b.median.resentPct) + '%'
+      : esc(s.split.cacheRead.pct) + '% of spend was re-sent (cached) context';
+    var compare = b
+      ? '  <text x="36" y="' + (H - 96) + '" font-family="ui-sans-serif,system-ui,sans-serif" font-size="13" fill="#94a3b8">more cache-efficient than ~<tspan fill="#34d399" font-weight="700">' + esc(b.cacheEffPctile) + '%</tspan> of ' + esc(b.ref.n) + ' measured sessions</text>\n'
+      : '';
+    // CTA pill — mirrors src/share.mjs
+    var pillY = H - 52, pillH = 34, pillW = 276;
+    var ctaPill = '  <rect x="36" y="' + pillY + '" width="' + pillW + '" height="' + pillH + '" rx="17" fill="#34d399"/>\n' +
+      '  <text x="' + (36 + pillW / 2) + '" y="' + (pillY + 22) + '" text-anchor="middle" font-family="ui-sans-serif,system-ui,sans-serif" font-weight="800" font-size="15" fill="#06281b">Make your own &#x2192; tokenscope.pages.dev</text>\n';
     return '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="tokenscope cost report card">\n' +
       '  <rect width="' + W + '" height="' + H + '" rx="14" fill="#0f172a"/>\n' +
       '  <rect x="0.5" y="0.5" width="' + (W - 1) + '" height="' + (H - 1) + '" rx="14" fill="none" stroke="#1e293b"/>\n' +
@@ -122,8 +170,9 @@
       '  <rect x="' + barX + '" y="' + barY + '" width="' + barW + '" height="' + barH + '" rx="4" fill="#1e293b"/>\n' +
       '  ' + barParts.join("\n  ") + '\n' +
       '  ' + legendParts.join("\n  ") + '\n' +
-      '  <text x="36" y="' + (H - 64) + '" font-family="ui-sans-serif,system-ui,sans-serif" font-size="15" font-weight="600" fill="#fbbf24">' + esc(s.split.cacheRead.pct) + '% of spend was re-sent (cached) context</text>\n' +
-      '  <text x="36" y="' + (H - 24) + '" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12" fill="#64748b">npx @wartzar-bee/tokenscope --share  ·  read-only, local, numbers only</text>\n' +
+      '  <text x="36" y="' + (H - 130) + '" font-family="ui-sans-serif,system-ui,sans-serif" font-size="15" font-weight="600" fill="#fbbf24">' + insight + '</text>\n' +
+      compare +
+      ctaPill +
       '</svg>';
   }
 

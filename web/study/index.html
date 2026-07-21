@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anatomy of a Claude Code session: where the money actually goes</title>
+<meta name="description" content="A data study of one real Claude Code session measured with tokenscope: ~$1,278 over ~1,270 model turns. Re-sent (cached) context was 66% of the cost; the model writing code was only 14%. n=1, one real session, honestly labelled — with hand-coded SVG charts and the raw breakdown.">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://tokenscope.pages.dev/study/">
+<meta property="og:title" content="Anatomy of a Claude Code session: where the money actually goes">
+<meta property="og:description" content="One real session, measured: ~$1,278 / ~1,270 turns. Re-sent cached context = 66% of cost; the model writing code = 14%. A data study (n=1, honest) with hand-coded SVG charts.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://tokenscope.pages.dev/study/">
+<meta property="og:site_name" content="tokenscope">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Anatomy of a Claude Code session: where the money goes">
+<meta name="twitter:description" content="One real session: 66% of the cost was re-sent cached context, not the model writing code. A data study (n=1) with hand-coded SVG charts.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='13'%3E%E2%8F%A3%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css">
+<style>
+  /* study-specific, dependency-free */
+  .tldr{background:linear-gradient(180deg,#0f1d33,#0f172a);border:1px solid #1d3350;
+    border-radius:12px;padding:18px 20px;margin:8px 0 4px}
+  .tldr h2{font-size:15px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);margin:0 0 8px}
+  .tldr p{margin:0 0 8px}
+  .tldr ul{margin:6px 0 0}
+  .toc{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 18px;margin:18px 0}
+  .toc strong{display:block;color:var(--mut);font-size:13px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+  .toc ul{list-style:none;padding:0;margin:0;columns:2;column-gap:24px}
+  @media(max-width:640px){.toc ul{columns:1}}
+  .toc li{margin:4px 0}
+  .meta-line{font-size:13px;color:var(--dim);margin:6px 0 0}
+  .nbadge{display:inline-block;background:#3b2f0a;border:1px solid #5b4708;color:var(--warn);
+    border-radius:7px;padding:3px 9px;font-size:12.5px;font-weight:700;letter-spacing:.02em}
+  figure{margin:22px 0;padding:0}
+  figure svg{width:100%;height:auto;display:block;background:var(--panel);
+    border:1px solid var(--line);border-radius:12px}
+  figcaption{color:var(--mut);font-size:13px;margin-top:8px;line-height:1.5}
+  .stat-row{display:flex;flex-wrap:wrap;gap:12px;margin:14px 0}
+  .stat{flex:1;min-width:150px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .stat .n{font-size:26px;font-weight:800;color:var(--accent);line-height:1.1}
+  .stat .l{color:var(--mut);font-size:13px;margin-top:4px}
+  .tablewrap{overflow-x:auto}
+  table{min-width:480px}
+  td.sw{width:14px;padding-right:0}
+  .sw i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:middle}
+  .faqq{font-weight:700;color:var(--ink);margin:20px 0 4px;font-size:17px}
+  .faqa{margin:0 0 8px}
+</style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "@id": "https://tokenscope.pages.dev/study/#article",
+      "headline": "Anatomy of a Claude Code session: where the money actually goes",
+      "description": "A data study of one real Claude Code session, measured with tokenscope: ~$1,278 over ~1,270 model turns, with re-sent cached context accounting for 66% of cost and the model writing code only 14%.",
+      "about": ["Claude Code cost", "LLM token cost", "prompt caching", "agentic coding", "context window cost"],
+      "inLanguage": "en",
+      "datePublished": "2026-05-29",
+      "dateModified": "2026-05-29",
+      "mainEntityOfPage": "https://tokenscope.pages.dev/study/",
+      "keywords": "Claude Code cost breakdown, cache read cost, re-sent context, prompt caching, agentic coding spend, context window cost, tokenscope",
+      "articleSection": ["TL;DR", "The numbers", "Cost split", "Context growth", "Why re-sent context dominates", "How to act", "Data table", "Method & honesty", "FAQ"],
+      "isBasedOn": {
+        "@type": "Dataset",
+        "@id": "https://tokenscope.pages.dev/study/#dataset"
+      }
+    },
+    {
+      "@type": "Dataset",
+      "@id": "https://tokenscope.pages.dev/study/#dataset",
+      "name": "Cost attribution of one real Claude Code session (n=1)",
+      "description": "Token and cost attribution for a single real Claude Code (agentic coding) session, measured locally with the tokenscope CLI. One session, n=1 — not an aggregate. Total cost approximately $1,278 over approximately 1,270 model turns; cost split: output 14%, cache-read (re-sent context) 66%, cache-write 20%, fresh input ~0%; peak context approximately 998,000 tokens; cache efficiency approximately 98%.",
+      "creator": {
+        "@type": "SoftwareApplication",
+        "name": "tokenscope",
+        "applicationCategory": "DeveloperApplication",
+        "url": "https://github.com/wartzar-bee/tokenscope"
+      },
+      "license": "https://opensource.org/licenses/MIT",
+      "isAccessibleForFree": true,
+      "measurementTechnique": "Local, read-only parsing of Claude Code session logs (~/.claude/projects/**/*.jsonl) by the tokenscope CLI; cost = token counts x documented Anthropic prices incl. cache multipliers (write 1.25x/2x, read 0.1x of input).",
+      "variableMeasured": [
+        {"@type": "PropertyValue", "name": "Total cost (USD)", "value": 1278, "unitText": "USD"},
+        {"@type": "PropertyValue", "name": "Model turns", "value": 1270},
+        {"@type": "PropertyValue", "name": "Output share of cost", "value": 14, "unitText": "PERCENT"},
+        {"@type": "PropertyValue", "name": "Cache-read (re-sent context) share of cost", "value": 66, "unitText": "PERCENT"},
+        {"@type": "PropertyValue", "name": "Cache-write share of cost", "value": 20, "unitText": "PERCENT"},
+        {"@type": "PropertyValue", "name": "Fresh input share of cost", "value": 0, "unitText": "PERCENT"},
+        {"@type": "PropertyValue", "name": "Peak context tokens", "value": 998000},
+        {"@type": "PropertyValue", "name": "Cache efficiency", "value": 98, "unitText": "PERCENT"}
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://tokenscope.pages.dev/study/#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Where does Claude Code spend actually go?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "In the one real session measured here (n=1), the cost split was: re-sent cached context (cache-read) 66%, cache-write (new context written to the cache) 20%, output (the model actually generating code) 14%, and fresh input roughly 0%. So about two-thirds of the bill was paying to re-send context the model had already seen, and only about one-seventh was the model writing anything. This is one session, not an aggregate."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Why is re-sent context the biggest cost in a long session?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The model is stateless, so the client re-sends the whole conversation context on every turn. With prompt caching that re-send is billed at the discounted cache-read rate (about 0.1x input), but it is paid every turn on the entire accumulated context. Cache-read cost is roughly context size x number of turns x input price x 0.1. A large context multiplied by hundreds or thousands of turns makes that small per-turn rate add up to the single biggest line, even though each individual read is cheap."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does the model writing code cost a lot?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Less than most people expect. In this session, output tokens (the model generating code and text) were only 14% of the cost. Output is priced higher per token than input, but the model writes far fewer tokens than the context it re-reads each turn, so output is usually a minority of a long agentic session's bill."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I reduce Claude Code cost based on this?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Attack the dominant line: re-sent context. Run /compact when the context window gets large, start a fresh session once a task is done instead of carrying a huge history forward, and avoid keeping large files or chatty tool output resident in context. Because cache-read is paid every subsequent turn, trimming context early pays off going forward — a big file read on turn 3 is re-billed on every turn after it. Output and fresh input are not where the money is, so optimizing those barely moves the bill."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is this an average or a benchmark?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. This is one real session, n=1, measured with the tokenscope CLI on a single project. It is not an average, not an aggregate across users, and not a benchmark. The shape (re-sent context dominating long sessions) is a general mechanic; the specific numbers are this one session's actual numbers and your sessions will differ."
+          }
+        }
+      ]
+    }
+  ]
+}
+</script>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <div class="brand"><a href="/">tokenscope &#9187;</a></div>
+    <div class="crumbs"><a href="/">Home</a> &rsaquo; Data study</div>
+    <h1>Anatomy of a Claude Code session: <span class="hl">where the money actually goes</span></h1>
+    <p class="sub">We measured one real Claude Code session end to end: <strong>~$1,278</strong> over
+      <strong>~1,270 model turns</strong>. The result is counter-intuitive &mdash; the model writing code was
+      only <strong>14%</strong> of the cost. The biggest line, by far, was paying to <strong>re-send context
+      the model had already seen</strong>.</p>
+    <p class="meta-line"><span class="nbadge">n = 1 &middot; one real session</span> &nbsp; Measured with the
+      tokenscope CLI &middot; no trackers, no cookies, no analytics &middot; Published 2026-05-29.</p>
+  </div>
+</header>
+
+<article>
+
+<section>
+  <div class="wrap">
+    <div class="tldr">
+      <h2>TL;DR</h2>
+      <p>In <strong>one real Claude Code session</strong> (n=1, not an average), the bill was
+        <strong>~$1,278 across ~1,270 model turns</strong>. Where it went:</p>
+      <ul>
+        <li><strong>66% &mdash; re-sent context</strong> (cache-read). The conversation so far, re-sent and
+          re-read on every single turn.</li>
+        <li><strong>20% &mdash; cache-write.</strong> New context (files, tool output) written into the cache
+          the first time it appears.</li>
+        <li><strong>14% &mdash; output.</strong> The model actually generating code and text.</li>
+        <li><strong>~0% &mdash; fresh input.</strong> Negligible once caching is doing its job.</li>
+      </ul>
+      <p style="margin-bottom:0">The headline: <strong>most of a long session's cost is not the model
+        thinking or writing &mdash; it's re-sending the same context again and again.</strong> Peak context
+        reached <strong>~998k tokens</strong> at a <strong>~98% cache hit rate</strong>. The fix is mundane:
+        shrink what stays in context (<code>/compact</code>, fresh sessions, fewer resident files/tools).</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="toc">
+      <strong>On this page</strong>
+      <ul>
+        <li><a href="#numbers">The numbers at a glance</a></li>
+        <li><a href="#where">Where does Claude Code spend go?</a></li>
+        <li><a href="#growth">How context grew over the session</a></li>
+        <li><a href="#why">Why is re-sent context the biggest cost?</a></li>
+        <li><a href="#output">Why isn't the model writing the big cost?</a></li>
+        <li><a href="#act">How to act on this</a></li>
+        <li><a href="#data">The full data table</a></li>
+        <li><a href="#method">Method &amp; honesty (n=1)</a></li>
+        <li><a href="#faq">FAQ</a></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="numbers">
+  <div class="wrap">
+    <h2>The numbers at a glance</h2>
+    <div class="stat-row">
+      <div class="stat"><div class="n">~$1,278</div><div class="l">total session cost</div></div>
+      <div class="stat"><div class="n">~1,270</div><div class="l">model turns</div></div>
+      <div class="stat"><div class="n">~998k</div><div class="l">peak context tokens</div></div>
+      <div class="stat"><div class="n">~98%</div><div class="l">cache hit rate</div></div>
+    </div>
+    <p>These are the actual numbers from <strong>one</strong> Claude Code session on this project, read out of
+      the local logs by <a href="https://github.com/wartzar-bee/tokenscope">tokenscope</a>. They are
+      <strong>not</strong> an average across users or sessions &mdash; treat them as a single, honest data
+      point that illustrates a general mechanic.</p>
+  </div>
+</section>
+
+<section id="where">
+  <div class="wrap">
+    <h2>Where does Claude Code spend go?</h2>
+    <p>Every API call in a session is billed in four buckets. Dashboards usually show only the running
+      <em>total</em>; the interesting question is the <em>attribution</em> &mdash; which bucket the money
+      actually went to. Here is the split for this session:</p>
+
+    <figure>
+      <!-- CHART 1: deterministic, hand-coded segmented cost-split bar. Inner plot x:20..780 (width 760). -->
+      <svg viewBox="0 0 800 250" role="img" xmlns="http://www.w3.org/2000/svg"
+           aria-label="Segmented bar of Claude Code session cost split: cache-read 66% (about $843), cache-write 20% (about $256), output 14% (about $179), fresh input about 0%.">
+        <text x="20" y="34" fill="#e2e8f0" font-family="ui-sans-serif,system-ui,sans-serif" font-size="17" font-weight="700">Cost split of one session &mdash; total ~$1,278</text>
+        <text x="20" y="54" fill="#94a3b8" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12.5">Each segment is a share of the bill. Re-sent context (cache-read) dominates.</text>
+
+        <!-- track -->
+        <rect x="20" y="78" width="760" height="56" rx="9" fill="#111c33" stroke="#1e293b"/>
+        <!-- segments: order = output, cache-read, cache-write, fresh.  widths: 106.4 / 501.6 / 152.0 / ~0 -->
+        <rect x="20"    y="78" width="106.4" height="56" fill="#22d3ee"/>
+        <rect x="126.4" y="78" width="501.6" height="56" fill="#fbbf24"/>
+        <rect x="628.0" y="78" width="152.0" height="56" fill="#c084fc"/>
+        <!-- rounded corners overlay on the bar ends via clip-less approach: redraw rounded track outline on top -->
+        <rect x="20" y="78" width="760" height="56" rx="9" fill="none" stroke="#1e293b"/>
+
+        <!-- in-segment labels (only where they fit) -->
+        <text x="179" y="110" fill="#06281b" font-family="ui-sans-serif,system-ui,sans-serif" font-size="14" font-weight="800" text-anchor="middle">66%</text>
+        <text x="179" y="124" fill="#06281b" font-family="ui-monospace,Menlo,monospace" font-size="11" text-anchor="middle">~$843</text>
+        <text x="704" y="110" fill="#1a0b2e" font-family="ui-sans-serif,system-ui,sans-serif" font-size="14" font-weight="800" text-anchor="middle">20%</text>
+        <text x="704" y="124" fill="#1a0b2e" font-family="ui-monospace,Menlo,monospace" font-size="11" text-anchor="middle">~$256</text>
+
+        <!-- legend -->
+        <g font-family="ui-sans-serif,system-ui,sans-serif" font-size="13">
+          <rect x="20"  y="168" width="13" height="13" rx="3" fill="#fbbf24"/>
+          <text x="40"  y="179" fill="#cbd5e1">Cache-read &mdash; re-sent context &nbsp;<tspan fill="#94a3b8">66% &middot; ~$843</tspan></text>
+          <rect x="20"  y="192" width="13" height="13" rx="3" fill="#c084fc"/>
+          <text x="40"  y="203" fill="#cbd5e1">Cache-write &mdash; new context &nbsp;<tspan fill="#94a3b8">20% &middot; ~$256</tspan></text>
+          <rect x="430" y="168" width="13" height="13" rx="3" fill="#22d3ee"/>
+          <text x="450" y="179" fill="#cbd5e1">Output &mdash; the model writing &nbsp;<tspan fill="#94a3b8">14% &middot; ~$179</tspan></text>
+          <rect x="430" y="192" width="13" height="13" rx="3" fill="#34d399"/>
+          <text x="450" y="203" fill="#cbd5e1">Fresh input &nbsp;<tspan fill="#94a3b8">~0% &middot; ~$0</tspan></text>
+        </g>
+      </svg>
+      <figcaption>Figure 1 &mdash; Cost attribution for one real Claude Code session (n=1). Segments sum to
+        100% ($179 + $843 + $256 = $1,278; fresh input rounds to ~$0). The output segment is the small cyan
+        sliver on the left.</figcaption>
+    </figure>
+
+    <p>Two-thirds of the bill &mdash; the wide amber band &mdash; is <strong>cache-read</strong>: the cost of
+      re-sending context the model had already received on earlier turns. The model <em>writing</em> (the
+      cyan sliver) was just 14%.</p>
+  </div>
+</section>
+
+<section id="growth">
+  <div class="wrap">
+    <h2>How context grew over the session</h2>
+    <p>The reason cache-read dominates is visible in how the context window <em>grows</em>. Every file read,
+      every tool result, and every reply stays in the conversation and is re-sent on subsequent turns, so the
+      context climbs as the session goes on &mdash; here, all the way to a peak of about <strong>998,000
+      tokens</strong>. The dips are compaction events that briefly shrink it before it climbs again.</p>
+
+    <figure>
+      <!-- CHART 2: deterministic context-growth curve. Plot box x:70..750, y:40..240. y axis 0..1000k. -->
+      <svg viewBox="0 0 800 280" role="img" xmlns="http://www.w3.org/2000/svg"
+           aria-label="Context-growth curve rising over the session from near zero to a peak of about 998,000 tokens at the final turn, with two small dips from compaction.">
+        <text x="20" y="26" fill="#e2e8f0" font-family="ui-sans-serif,system-ui,sans-serif" font-size="17" font-weight="700">Context size over the session &rarr; peak ~998k tokens</text>
+
+        <!-- y gridlines + labels: 0,250,500,750,1000 (k) -->
+        <g font-family="ui-monospace,Menlo,monospace" font-size="11" fill="#64748b">
+          <line x1="70" y1="240" x2="750" y2="240" stroke="#1e293b"/>
+          <text x="62" y="244" text-anchor="end">0</text>
+          <line x1="70" y1="190" x2="750" y2="190" stroke="#1e293b" stroke-dasharray="2,4"/>
+          <text x="62" y="194" text-anchor="end">250k</text>
+          <line x1="70" y1="140" x2="750" y2="140" stroke="#1e293b" stroke-dasharray="2,4"/>
+          <text x="62" y="144" text-anchor="end">500k</text>
+          <line x1="70" y1="90" x2="750" y2="90" stroke="#1e293b" stroke-dasharray="2,4"/>
+          <text x="62" y="94" text-anchor="end">750k</text>
+          <line x1="70" y1="40" x2="750" y2="40" stroke="#1e293b" stroke-dasharray="2,4"/>
+          <text x="62" y="44" text-anchor="end">1M</text>
+        </g>
+
+        <!-- area fill under curve -->
+        <polygon points="70.0,230.0 80.6,229.0 91.2,227.5 101.9,225.9 112.5,224.2 123.1,222.4 133.8,220.6 144.4,218.8 155.0,217.0 165.6,215.2 176.2,213.4 186.9,211.6 197.5,209.9 208.1,208.1 218.8,206.2 229.4,204.3 240.0,202.2 250.6,200.1 261.2,197.8 271.9,195.3 282.5,192.7 293.1,189.8 303.8,186.9 314.4,183.7 325.0,180.4 335.6,177.1 346.2,173.6 356.9,170.1 367.5,166.6 378.1,195.1 388.8,191.7 399.4,156.3 410.0,153.1 420.6,150.0 431.2,147.0 441.9,144.1 452.5,141.3 463.1,138.6 473.8,135.9 484.4,133.3 495.0,130.6 505.6,127.8 516.2,124.8 526.9,121.8 537.5,118.5 548.1,115.1 558.8,111.5 569.4,107.6 580.0,103.6 590.6,99.4 601.2,95.0 611.9,90.6 622.5,116.1 633.1,81.6 643.8,77.2 654.4,72.8 665.0,68.6 675.6,64.5 686.2,60.6 696.9,56.9 707.5,53.3 718.1,50.0 728.8,46.7 739.4,43.5 750,40.4 750,240 70,240"
+                 fill="#fbbf24" fill-opacity="0.10"/>
+        <!-- curve -->
+        <polyline points="70.0,230.0 80.6,229.0 91.2,227.5 101.9,225.9 112.5,224.2 123.1,222.4 133.8,220.6 144.4,218.8 155.0,217.0 165.6,215.2 176.2,213.4 186.9,211.6 197.5,209.9 208.1,208.1 218.8,206.2 229.4,204.3 240.0,202.2 250.6,200.1 261.2,197.8 271.9,195.3 282.5,192.7 293.1,189.8 303.8,186.9 314.4,183.7 325.0,180.4 335.6,177.1 346.2,173.6 356.9,170.1 367.5,166.6 378.1,195.1 388.8,191.7 399.4,156.3 410.0,153.1 420.6,150.0 431.2,147.0 441.9,144.1 452.5,141.3 463.1,138.6 473.8,135.9 484.4,133.3 495.0,130.6 505.6,127.8 516.2,124.8 526.9,121.8 537.5,118.5 548.1,115.1 558.8,111.5 569.4,107.6 580.0,103.6 590.6,99.4 601.2,95.0 611.9,90.6 622.5,116.1 633.1,81.6 643.8,77.2 654.4,72.8 665.0,68.6 675.6,64.5 686.2,60.6 696.9,56.9 707.5,53.3 718.1,50.0 728.8,46.7 739.4,43.5 750,40.4"
+                  fill="none" stroke="#fbbf24" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+        <!-- peak marker -->
+        <circle cx="750" cy="40.4" r="4" fill="#fbbf24"/>
+        <text x="744" y="34" text-anchor="end" fill="#fbbf24" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12" font-weight="700">~998k</text>
+        <!-- x axis label -->
+        <text x="410" y="270" text-anchor="middle" fill="#64748b" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12">session progress &rarr; ~1,270 model turns</text>
+      </svg>
+      <figcaption>Figure 2 &mdash; Context window size over the session, rising to the measured peak of ~998k
+        tokens. The curve's <em>shape</em> (steady accumulation with compaction dips) is illustrative of how
+        agentic context builds; the <strong>peak (~998k)</strong> and <strong>turn count (~1,270)</strong> are
+        this session's real figures.</figcaption>
+    </figure>
+
+    <p>Every token in that rising area is re-sent on each following turn. A token added early is re-read
+      hundreds of times before the session ends; a token added near the end is re-read only a few times. That
+      is precisely why the area under the curve &mdash; not the model's output &mdash; sets the bill.</p>
+  </div>
+</section>
+
+<section id="why">
+  <div class="wrap">
+    <h2>Why is re-sent context the biggest cost?</h2>
+    <p>The model is stateless between requests: it has no memory of your session. To act on the conversation
+      so far, the client re-sends the entire context on <em>every</em> turn &mdash; your instructions, every
+      file it read, every tool result, and all prior replies. Prompt caching makes that affordable by billing
+      the re-send at a steep discount (cache-read, about <code>0.1&times;</code> the input price) instead of
+      full input price. But it is still paid every turn, on the whole accumulated context.</p>
+    <div class="callout">
+      <code>cache-read cost &asymp; context size &times; number of turns &times; input price &times; 0.1</code>
+    </div>
+    <p>That formula is the whole story. A small context over a few turns is negligible. But multiply a
+      <strong>large</strong> context (here peaking near a million tokens) by <strong>many</strong> turns (here
+      ~1,270) and the 0.1&times; rate compounds past every other line combined. At a ~98% cache hit rate
+      almost all of that context <em>was</em> on the cheap read path &mdash; and it still came to 66% of the
+      bill. The discount is real; the repetition is just bigger.</p>
+  </div>
+</section>
+
+<section id="output">
+  <div class="wrap">
+    <h2>Why isn't the model writing the big cost?</h2>
+    <p>This is the counter-intuitive part. Output tokens are priced <em>higher</em> per token than input, so
+      it is natural to assume the model "thinking and typing" is where the money goes. But the model writes
+      relatively few tokens per turn, while the context it must re-read each turn is enormous and only grows.
+      Across the whole session the model's own output was just <strong>14%</strong> ($179) of the bill.</p>
+    <p>In other words: you are not mostly paying for answers. You are mostly paying to remind the model of
+      everything it already knew, once per turn, for the life of the session.</p>
+  </div>
+</section>
+
+<section id="act">
+  <div class="wrap">
+    <h2>How to act on this</h2>
+    <p>If 66% of the cost is re-sent context, the leverage is obvious: <strong>keep the context small.</strong>
+      Optimizing output or fresh input barely moves a long-session bill; trimming context moves it a lot.</p>
+    <ul>
+      <li><strong>Run <a href="/when-to-use-compact-claude-code/">/compact</a> when the window gets large.</strong>
+        It shrinks what gets re-sent from that point on. The saving is <em>going forward</em>, not retroactive
+        &mdash; so compact <em>before</em> a long stretch of turns, not after.</li>
+      <li><strong>Start a fresh session when a task is done.</strong> Carrying a 900k-token history into an
+        unrelated task means paying to re-read all of it on every new turn. A clean session resets the area
+        under the curve to near zero.</li>
+      <li><strong>Don't keep huge files or chatty tools resident.</strong> A big file read or a verbose tool
+        early in the session is re-billed on every turn that follows. Read what you need, then let it leave
+        context.</li>
+      <li><strong>Spend your attention on the dominant line.</strong> Shaving output or fresh input is rounding
+        error here; shaving context is the bill.</li>
+    </ul>
+    <div class="callout">
+      <strong>The one-liner:</strong> the cheapest token is the one you don't re-send. Measure your own split
+      before you optimize &mdash; the dominant line is what to attack, and it's usually cache-read.
+    </div>
+    <div class="cta">
+      <h3>Measure your own session</h3>
+      <p><a href="https://github.com/wartzar-bee/tokenscope">tokenscope</a> is a local, read-only CLI that
+        produces exactly the breakdown on this page from your own Claude Code logs &mdash; output vs.
+        cache-read vs. cache-write vs. fresh input, plus how context grew. Nothing is uploaded.</p>
+      <div class="cmd">
+        <code>npx @wartzar-bee/tokenscope</code>
+        <a class="btnlink" href="/#try">Paste a report in your browser &rarr;</a>
+      </div>
+      <p class="small" style="margin-bottom:0">Read-only, local, no upload, no telemetry. MIT. Not affiliated
+        with Anthropic.</p>
+    </div>
+  </div>
+</section>
+
+<section id="data">
+  <div class="wrap">
+    <h2>The full data table</h2>
+    <p>The complete breakdown for this one session, so you can quote or check the arithmetic:</p>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th></th><th>Cost bucket</th><th class="num">Share</th><th class="num">Cost (USD)</th><th>What it is</th></tr></thead>
+      <tbody>
+        <tr><td class="sw"><i style="background:#fbbf24"></i></td><td><strong>Cache-read</strong> (re-sent context)</td><td class="num">66%</td><td class="num">~$843</td><td>Context re-sent &amp; re-read every turn, at ~0.1&times; input.</td></tr>
+        <tr><td class="sw"><i style="background:#c084fc"></i></td><td><strong>Cache-write</strong> (new context)</td><td class="num">20%</td><td class="num">~$256</td><td>New files/tool output written to cache the first time.</td></tr>
+        <tr><td class="sw"><i style="background:#22d3ee"></i></td><td><strong>Output</strong> (model writing)</td><td class="num">14%</td><td class="num">~$179</td><td>Tokens the model generated (code + text).</td></tr>
+        <tr><td class="sw"><i style="background:#34d399"></i></td><td><strong>Fresh input</strong></td><td class="num">~0%</td><td class="num">~$0</td><td>Uncached prompt tokens; negligible once caching kicks in.</td></tr>
+        <tr><td class="sw"></td><td><strong>Total</strong></td><td class="num">100%</td><td class="num">~$1,278</td><td>Over ~1,270 model turns.</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Session metric</th><th class="num">Value</th></tr></thead>
+      <tbody>
+        <tr><td>Total cost</td><td class="num">~$1,278</td></tr>
+        <tr><td>Model turns</td><td class="num">~1,270</td></tr>
+        <tr><td>Peak context</td><td class="num">~998,000 tokens</td></tr>
+        <tr><td>Cache hit rate (efficiency)</td><td class="num">~98%</td></tr>
+        <tr><td>Sample size</td><td class="num">n = 1 (one real session)</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="small">Percentages are rounded; $179 + $843 + $256 = $1,278, with fresh input rounding to ~$0.
+      Costs are token counts &times; documented Anthropic prices, including cache multipliers (write
+      1.25&times;/2&times;, read 0.1&times; of input).</p>
+  </div>
+</section>
+
+<section id="method">
+  <div class="wrap">
+    <h2>Method &amp; honesty (n=1)</h2>
+    <p>Read this part. The numbers above are <strong>one real Claude Code session</strong> &mdash; a single run
+      on this project &mdash; measured with the <a href="https://github.com/wartzar-bee/tokenscope">tokenscope</a>
+      CLI, which reads Claude Code's local session logs
+      (<code>~/.claude/projects/**/*.jsonl</code>) read-only and attributes cost by multiplying the token
+      counts in those logs by documented Anthropic prices.</p>
+    <ul>
+      <li><strong>n = 1.</strong> This is not an average, not an aggregate across users or sessions, and not a
+        benchmark. Your sessions will have different totals and splits depending on how big your context grows
+        and how long you run.</li>
+      <li><strong>The mechanic generalizes; the numbers don't.</strong> "Re-sent cached context dominates long
+        sessions" is a structural property of stateless models + per-turn context re-send. The exact 66/20/14
+        split is specific to this session.</li>
+      <li><strong>No fabrication.</strong> The figures (~$1,278, ~1,270 turns, ~998k peak, ~98% cache
+        efficiency, and the cost split) are tokenscope's actual output for this session. We did not invent
+        other statistics, and there are no aggregate or cross-model claims on this page.</li>
+      <li><strong>Charts are hand-coded SVG.</strong> Both figures are deterministic SVG drawn in markup &mdash;
+        no chart library, no image generation, no external assets. Figure 1's segment widths and figure 2's
+        peak are the real values; figure 2's intermediate curve <em>shape</em> is illustrative of typical
+        accumulation (clearly noted in its caption).</li>
+      <li><strong>Prices can change.</strong> Anthropic's rates and cache multipliers are documented defaults
+        and vary by tier/time &mdash; verify current pricing for your account. tokenscope lets you override
+        prices in <code>.tokenscope.json</code>.</li>
+      <li><strong>No trackers.</strong> This page loads no scripts, no fonts, no analytics, and sets no
+        cookies. You can read it offline.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <h2>FAQ</h2>
+
+    <p class="faqq">Where does Claude Code spend actually go?</p>
+    <p class="faqa">In this one real session (n=1), the split was re-sent cached context (cache-read) 66%,
+      cache-write 20%, output 14%, and fresh input ~0%. About two-thirds was paying to re-send context the
+      model had already seen; only about one-seventh was the model writing anything.</p>
+
+    <p class="faqq">Why is re-sent context the biggest cost in a long session?</p>
+    <p class="faqa">The model is stateless, so the whole conversation context is re-sent every turn. Prompt
+      caching bills that at ~0.1&times; the input price, but it is paid every turn on the entire accumulated
+      context. Cache-read cost is roughly context size &times; number of turns &times; input price &times; 0.1
+      &mdash; so a large context over many turns becomes the biggest line even though each read is cheap.</p>
+
+    <p class="faqq">Does the model writing code cost a lot?</p>
+    <p class="faqa">Less than people expect. Output was only 14% of this session's cost. Output is priced higher
+      per token than input, but the model writes far fewer tokens than the context it re-reads each turn, so
+      output is usually a minority of a long agentic session's bill.</p>
+
+    <p class="faqq">How do I reduce Claude Code cost based on this?</p>
+    <p class="faqa">Attack the dominant line: re-sent context. Run <a href="/when-to-use-compact-claude-code/">/compact</a>
+      when the window gets large, start a fresh session once a task is done instead of carrying a huge history
+      forward, and don't keep large files or chatty tool output resident in context. Because cache-read is paid
+      every subsequent turn, trimming context early pays off going forward. Optimizing output or fresh input
+      barely moves the bill.</p>
+
+    <p class="faqq">Is this an average or a benchmark?</p>
+    <p class="faqa">No. It is one real session, n=1, measured with tokenscope on a single project. It is not an
+      average, an aggregate, or a benchmark. The shape (re-sent context dominating long sessions) is a general
+      mechanic; the specific numbers are this one session's actual figures and yours will differ.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Related reading</h2>
+    <ul class="related">
+      <li><a href="/claude-code-cache-cost-explained/"><span class="t">Claude Code cache &amp; context cost, explained</span><span class="d">The mechanic behind this study, in detail.</span></a></li>
+      <li><a href="/why-is-claude-code-so-expensive/"><span class="t">Why is Claude Code so expensive?</span><span class="d">The short, plain-language version.</span></a></li>
+      <li><a href="/reduce-claude-code-bill/"><span class="t">How to reduce your Claude Code bill</span><span class="d">The concrete checklist that follows from these numbers.</span></a></li>
+      <li><a href="/when-to-use-compact-claude-code/"><span class="t">When to use /compact in Claude Code</span><span class="d">How to shrink context without losing your thread.</span></a></li>
+      <li><a href="/claude-code-context-window-cost/"><span class="t">Claude Code context window cost</span><span class="d">Translating window size into per-turn dollars.</span></a></li>
+    </ul>
+  </div>
+</section>
+
+</article>
+
+<footer>
+  <div class="wrap">
+    <p>A data study by <a href="/">tokenscope</a> &mdash; local, read-only Claude Code cost &amp; context
+      attribution. One real session, n=1, honestly labelled; no fabricated or aggregate statistics. No
+      trackers, no cookies, no analytics. Free to read and cite.</p>
+    <p class="small">MIT. Not affiliated with or endorsed by Anthropic. Numbers were produced by the tokenscope
+      CLI from local logs; verify current Anthropic pricing for your account. &middot;
+      <a href="https://github.com/wartzar-bee/tokenscope">GitHub</a> &middot; <code>@wartzar-bee/tokenscope</code> on npm</p>
+  </div>
+</footer>
+</body>
+</html>

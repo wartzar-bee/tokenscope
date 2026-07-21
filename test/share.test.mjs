@@ -1,7 +1,7 @@
 // Tests for the privacy-safe share summary / markdown / SVG card.
 // Run: node test/share.test.mjs
 import { parse, analyze } from "../src/core.mjs";
-import { shareSummary, shareMarkdown, shareCardSVG } from "../src/share.mjs";
+import { shareSummary, shareMarkdown, shareCardSVG, packSummary, shareLink, CARD_BASE_URL } from "../src/share.mjs";
 
 let pass = 0, fail = 0;
 const ok = (n, c) => { if (c) { pass++; console.log("  ok  - " + n); } else { fail++; console.log(" FAIL - " + n); } };
@@ -53,13 +53,66 @@ ok("svg: self-contained (no external href/script/image)", !/<script|<image|xlink
 ok("svg: balanced rect/text tags render the bar", (svg.match(/<rect/g) || []).length >= 3 && (svg.match(/<text/g) || []).length >= 4);
 ok("svg: escapes special chars (no raw < > inside text payloads beyond tags)", !/&(?!amp;|lt;|gt;|quot;|#)/.test(svg));
 
+// --- benchmark: "how this compares" (vs the shipped reference set) ---
+ok("benchmark: present for a non-zero session", s.benchmark && typeof s.benchmark === "object");
+ok("benchmark: percentiles are integers in 1..99", [s.benchmark.costPctile, s.benchmark.cacheEffPctile, s.benchmark.resentPctile].every((p) => Number.isInteger(p) && p >= 1 && p <= 99));
+ok("benchmark: ref carries n + an ISO asOf date", s.benchmark.ref.n > 0 && /^\d{4}-\d{2}-\d{2}$/.test(s.benchmark.ref.asOf));
+ok("benchmark: median figures present", s.benchmark.median.costUsd > 0 && s.benchmark.median.cacheEff > 0);
+ok("markdown: includes the comparison block", /How this compares/.test(md) && /measured/.test(md));
+ok("svg: includes the comparison line", svg.includes("measured sessions"));
+
+// --- share LINK (the self-distribution loop) ---
+// This decoder is a 1:1 mirror of web/card/card.js:unpackSummary. If the Node encoder
+// (packSummary) and the browser decoder ever drift, this round-trip test fails — that's
+// the point: it pins the wire contract that the real-browser E2E also exercises.
+function unpackSummaryMirror(arr) {
+  if (!Array.isArray(arr) || arr[0] !== 1) throw new Error("unsupported card schema");
+  const cell = (c) => ({ usd: (c && c[0]) || 0, pct: (c && c[1]) || 0 });
+  const split = { output: cell(arr[3]), cacheRead: cell(arr[4]), cacheWrite: cell(arr[5]), freshInput: cell(arr[6]) };
+  if (arr.length > 11 && Array.isArray(arr[11])) split.webTools = cell(arr[11]);
+  return {
+    tool: "tokenscope", totalCost: arr[1] || 0, turns: arr[2] || 0, split,
+    context: { peak: arr[7] || 0, avg: arr[8] || 0 },
+    cacheEfficiency: arr[9] || 0, modelCount: arr[10] || 0
+  };
+}
+const b64urlDecode = (s) => {
+  let b64 = s.replace(/-/g, "+").replace(/_/g, "/");
+  while (b64.length % 4) b64 += "=";
+  return Buffer.from(b64, "base64").toString("utf8");
+};
+
+const link = shareLink(a);
+// CARD_BASE_URL already ends in "#" (UTM params + trailing #), so the link IS the base + payload.
+ok("link: is an https url to the /card/ page", typeof link === "string" && link.startsWith(CARD_BASE_URL));
+ok("link: payload lives in the URL fragment (after #) — never sent to a server", link.indexOf("#") === link.lastIndexOf("#") && link.split("#")[1].length > 0);
+const decodedArr = JSON.parse(b64urlDecode(link.split("#")[1]));
+const decoded = unpackSummaryMirror(decodedArr);
+ok("link: round-trips totalCost", decoded.totalCost === s.totalCost);
+ok("link: round-trips turns", decoded.turns === s.turns);
+ok("link: round-trips the split (output/cacheRead/cacheWrite/freshInput pct+usd)",
+  decoded.split.output.pct === s.split.output.pct && decoded.split.cacheRead.usd === s.split.cacheRead.usd &&
+  decoded.split.cacheWrite.pct === s.split.cacheWrite.pct && decoded.split.freshInput.usd === s.split.freshInput.usd);
+ok("link: round-trips context peak/avg + cacheEfficiency", decoded.context.peak === s.context.peak && decoded.context.avg === s.context.avg && decoded.cacheEfficiency === s.cacheEfficiency);
+ok("link: round-trips model COUNT only (not model names — privacy)", decoded.modelCount === s.models.length);
+// PRIVACY: the encoded fragment must not carry any forbidden token either.
+const fragBlob = decodeURIComponent(b64urlDecode(link.split("#")[1]));
+for (const tok of forbidden) ok(`link-privacy: fragment does NOT contain "${tok}"`, !fragBlob.includes(tok));
+ok("link-privacy: fragment carries no model id/name string at all (numbers only)", !/[a-zA-Z]/.test(fragBlob.replace(/[\[\],\s.\-eE]/g, "")) || /^[\d.,\[\]\s-]+$/.test(fragBlob));
+ok("link: a fresh card SVG built from the DECODED summary still renders (recipient view)",
+  shareCardSVG({ breakdown: { out: decoded.split.output.usd, cacheRead: decoded.split.cacheRead.usd, cacheWrite: decoded.split.cacheWrite.usd, freshIn: decoded.split.freshInput.usd },
+    pct: { out: decoded.split.output.pct, cacheRead: decoded.split.cacheRead.pct, cacheWrite: decoded.split.cacheWrite.pct, freshIn: decoded.split.freshInput.pct },
+    totalCost: decoded.totalCost, turns: decoded.turns, context: { peak: decoded.context.peak, avg: decoded.context.avg }, cacheEfficiency: decoded.cacheEfficiency / 100, byModel: {} }).trim().startsWith("<svg"));
+
 // --- empty/zero-cost session degrades gracefully ---
 const empty = analyze([], undefined);
 const es = shareSummary(empty);
 ok("empty: totalCost 0, turns 0", es.totalCost === 0 && es.turns === 0);
+ok("empty: benchmark is null (no comparison on a no-cost session)", es.benchmark === null);
 ok("empty: headline says no measurable cost", /no measurable cost/i.test(es.headline));
 ok("empty: shareMarkdown does not throw", typeof shareMarkdown(empty) === "string");
 ok("empty: shareCardSVG does not throw and is valid svg", shareCardSVG(empty).trim().startsWith("<svg"));
+ok("empty: shareLink is null (nothing to flex on a zero-cost session)", shareLink(empty) === null);
 
 console.log("\n" + pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);

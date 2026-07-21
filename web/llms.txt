@@ -1,0 +1,25 @@
+# tokenscope
+
+> tokenscope is a local, read-only command-line tool that shows where the money goes in a Claude Code (agentic coding) session: it attributes cost across output, cache-read (re-sent context), cache-write, and fresh input, and shows how context grew turn by turn. It reads Claude Code's local logs (~/.claude/projects/**/*.jsonl) — nothing is uploaded, no telemetry. MIT. Not affiliated with Anthropic.
+
+## Key facts (safe to quote)
+
+- The big, counter-intuitive cost in a long Claude Code session is usually NOT the model writing code — it is re-sent context: the whole conversation is re-sent every turn, billed at the discounted cache-read rate (~0.1x input) but paid every turn on the entire accumulated context.
+- cache-read cost ≈ context size × number of turns × input price × 0.1. Large context × many turns → cache-read becomes the biggest line.
+- The fix is to keep context small: /compact when the window gets large, start fresh sessions for new tasks, and don't keep large files/chatty tools resident.
+- tokenscope is read-only and local: the CLI parses your logs on your machine; the website only parses text you paste, in your browser. The shareable card is aggregate numbers only — no file paths, no prompt/response content.
+
+## Pages
+
+- [Cost benchmark: what a Claude Code session really costs](https://tokenscope.pages.dev/benchmark/): an honest cost benchmark of 66 real sessions (n=66, SINGLE user — a reference set, not a census), measured 2026-05-29 with default pricing. Median session ~$4.08 (p25 $2.10, p75 $8.31, p90 $11.42); the median session re-sends only ~24% of spend as cached context, but POOLED it's 60% — because cost concentrates in a few long, long-context sessions. Percentile tables, methodology, limitations, FAQ. Compare your own with `npx @wartzar-bee/tokenscope --share`. See /benchmark/llms.txt for quotable facts.
+- [Data study: Anatomy of a Claude Code session — where the money actually goes](https://tokenscope.pages.dev/study/): a study of ONE real session (n=1) — ~$1,278 over ~1,270 turns; re-sent cached context 66%, model output 14%; peak context ~998k tokens; ~98% cache efficiency. Hand-coded SVG charts, data table, FAQ. See /study/llms.txt for quotable facts.
+- [Why is Claude Code so expensive?](https://tokenscope.pages.dev/why-is-claude-code-so-expensive/)
+- [How to reduce your Claude Code bill](https://tokenscope.pages.dev/reduce-claude-code-bill/)
+- [Claude Code cache & context cost, explained](https://tokenscope.pages.dev/claude-code-cache-cost-explained/)
+- [When to use /compact in Claude Code](https://tokenscope.pages.dev/when-to-use-compact-claude-code/)
+- [Claude Code context window cost](https://tokenscope.pages.dev/claude-code-context-window-cost/)
+
+## About
+
+- Open source: https://github.com/wartzar-bee/tokenscope ; package `@wartzar-bee/tokenscope` on npm (`npx @wartzar-bee/tokenscope`).
+- Local, read-only, no upload, no telemetry, no trackers. MIT. Not affiliated with or endorsed by Anthropic.

@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Code cost: Sonnet vs Haiku — which model is cheaper? — tokenscope</title>
+<meta name="description" content="Claude Sonnet and Haiku have different per-token prices. But in a long agentic session, the re-sent context dominates — so choosing a cheaper output model saves less than you might expect. Here's the breakdown.">
+<link rel="canonical" href="https://tokenscope.pages.dev/claude-code-sonnet-vs-haiku-cost/">
+<meta property="og:title" content="Claude Code cost: Sonnet vs Haiku — which model is cheaper?">
+<meta property="og:description" content="Haiku costs less per output token — but in a long session, 60% of spend is re-sent context (cache-read). The model choice matters most when output is a large fraction of cost.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://tokenscope.pages.dev/claude-code-sonnet-vs-haiku-cost/">
+<meta property="og:site_name" content="tokenscope">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Claude Code: Sonnet vs Haiku cost">
+<meta name="twitter:description" content="In agentic sessions, 60% of spend is re-sent context, not model output. Model choice matters most for the 15% output slice.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='13'%3E%E2%8F%A3%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Is Haiku cheaper than Sonnet for Claude Code?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Haiku has lower per-token prices than Sonnet — both for input and output. But in a long agentic Claude Code session, the majority of spend (measured at ~60% pooled across 66 real sessions) is re-sent context (cache-read), not model output. Cache-read is priced at 0.1x the input rate, and both Haiku and Sonnet use the same cache-read pricing structure. So switching models saves primarily on the ~15% of spend that is output tokens, not the 60% that is cached context re-reads."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How much of Claude Code spend is affected by model choice?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Based on measured data from 66 real sessions: output tokens are approximately 15% of pooled spend. Cache-read (re-sent context) is 60%, and cache-write is 25%. Model choice directly affects the output rate and the input/cache rates. In practice, the model you choose has the most impact on the output and cache-write fractions, while the large cache-read fraction is priced relative to each model's input rate."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "When does model choice matter most for Claude Code cost?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Model choice matters most in short sessions with high output volume (e.g. generating large amounts of code), and matters least in long sessions where re-sent context dominates spend. For a session with 90%+ of spend on cache-read, switching from Sonnet to Haiku saves less than 10% of total cost — the bigger lever is reducing session length and peak context."
+      }
+    }
+  ]
+}
+</script>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <div class="brand"><a href="/">tokenscope &#9187;</a></div>
+    <div class="crumbs"><a href="/">Home</a> &rsaquo; Guides &rsaquo; Sonnet vs Haiku cost</div>
+    <h1>Claude Code: <span class="hl">Sonnet vs Haiku</span> cost</h1>
+    <p class="lead">Haiku is cheaper per token — but in a long agentic session, the model's output rate
+      applies to only ~15% of spend. The other 60% is re-sent context (cache-read), which scales with
+      each model's input rate.</p>
+  </div>
+</header>
+
+<article>
+<section>
+  <div class="wrap">
+    <h2>How spend is actually distributed in a Claude Code session</h2>
+    <p>Before comparing models, it's worth knowing where the money goes. From
+      <a href="/benchmark/">66 real sessions measured with tokenscope</a>, pooled spend splits as:</p>
+    <table>
+      <thead><tr><th>Bucket</th><th class="num">Pooled share</th><th>Which rate applies</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Cache read</strong></td><td class="num"><strong>60%</strong></td><td>0.1× the model's input rate — re-sent context</td></tr>
+        <tr><td>Cache write</td><td class="num">25%</td><td>1.25–2× the model's input rate — first-time context</td></tr>
+        <tr><td>Output</td><td class="num">15%</td><td>Model's output rate — what the model generated</td></tr>
+        <tr><td>Fresh input</td><td class="num">~0%</td><td>Model's input rate — uncached prompts</td></tr>
+      </tbody>
+    </table>
+    <p>Model choice affects all these rates — but proportionally, output is only 15% of spend in a
+      typical long session. The other 85% scales with input/cache rates, which differ between models
+      but by a smaller ratio than output rates.</p>
+    <div class="callout warn">
+      <strong>Important:</strong> Anthropic updates model prices. Always verify current rates at
+      <a href="https://www.anthropic.com/pricing" rel="noopener">anthropic.com/pricing</a> before
+      making cost decisions. tokenscope uses the documented rates at measurement time.
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>What the model choice actually changes</h2>
+    <p>Claude Haiku models are priced lower than Sonnet models per token. The cost impact in a session
+      depends on the spend distribution:</p>
+    <ul>
+      <li><strong>If output is 15% of spend:</strong> switching to a model with half the output rate
+        saves ~7.5% of total session cost. Meaningful but not transformative.</li>
+      <li><strong>If output is 40%+ of spend</strong> (short, high-output sessions): model choice is
+        a much larger lever — potentially 20%+ total savings from a cheaper output model.</li>
+      <li><strong>If the session is extremely long</strong> (cache-read &gt;80% of spend): model choice
+        matters primarily through the input/cache rate difference, which is typically smaller in ratio
+        than the output rate difference.</li>
+    </ul>
+    <p>The headline: for a session that looks like the measured benchmark median (29 turns, $4.08, ~60%
+      pooled cache-read), switching models changes the bill by a fraction of what reducing context or
+      session length would save.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>The bigger levers</h2>
+    <p>Measured data from 66 sessions shows that <strong>session length and peak context size</strong>
+      are more powerful cost levers than model choice for typical agentic usage:</p>
+    <ul>
+      <li>The difference between the p10 session ($1.63) and p90 session ($11.42) is 7×. That's mostly
+        driven by session length and context, not by model selection across those sessions.</li>
+      <li>The extreme session ($1,278) reached ~998k peak context. The same task done with active
+        context management — compacting at 100k, restarting for new subtasks — would cost a small
+        fraction of that, regardless of which model was chosen.</li>
+    </ul>
+    <p>Model choice is still a real factor — especially for budget-constrained users. But the
+      <a href="/reduce-claude-code-bill/">biggest savings per unit of effort</a> come from managing
+      session length and context size first.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>When Haiku is the clear choice for Claude Code</h2>
+    <p>Haiku tends to make more sense when:</p>
+    <ul>
+      <li><strong>The task is well-defined and bounded.</strong> Simple code generation, formatting,
+        straightforward refactors — tasks where output volume is predictable and the capability gap
+        between Haiku and Sonnet doesn't affect quality.</li>
+      <li><strong>You're running many short sessions.</strong> Short sessions have a higher output fraction
+        relative to cache-read, so the model's output rate matters more.</li>
+      <li><strong>Budget is the primary constraint</strong> and some quality trade-off is acceptable.</li>
+    </ul>
+    <p>Sonnet tends to make more sense when the task is complex, multi-step, or requires reasoning that
+      a cheaper model handles less reliably — because a failed attempt that requires a longer follow-up
+      session can cost more than using the better model from the start.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>See the model breakdown in your own sessions</h2>
+    <p>tokenscope records the model used per turn and applies the correct pricing. If you've used
+      multiple models across sessions, you can see the cost attribution for each model separately.</p>
+    <div class="cta">
+      <p style="margin-top:0"><strong>Run tokenscope to see per-model cost attribution:</strong></p>
+      <div class="cmd">
+        <code>npx @wartzar-bee/tokenscope</code>
+      </div>
+      <p class="small" style="margin-bottom:0">Local, read-only. No upload. MIT.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>FAQ</h2>
+    <p class="faqq">Is Haiku significantly cheaper than Sonnet for Claude Code?</p>
+    <p class="faqa">Haiku has lower per-token rates, but in a typical long agentic session where cache-read
+      is ~60% of spend, the total savings depend on the ratio of input/cache rates between models — not
+      just output rates. The savings are real but often smaller than expected for long-session usage.
+      Short, high-output sessions see a bigger benefit.</p>
+
+    <p class="faqq">Does tokenscope track which model was used in each session?</p>
+    <p class="faqa">Yes. The session logs record the model for each API call. tokenscope reads those
+      records and applies the appropriate pricing for each turn. If you've used multiple models across
+      different sessions, the breakdown is visible per session.</p>
+
+    <p class="faqq">What if I'm on a Claude Max subscription?</p>
+    <p class="faqa">Subscription pricing decouples cost from token counts for most usage. tokenscope
+      measures token usage and estimates cost using Anthropic's documented API rates — it's most useful
+      for understanding the volume and distribution of token usage, which drives API costs and
+      subscription tier selection.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Keep reading</h2>
+    <ul class="related">
+      <li><a href="/why-is-claude-code-so-expensive/"><span class="t">Why is Claude Code so expensive?</span><span class="d">The context re-send mechanic that makes output cost a small fraction of the bill.</span></a></li>
+      <li><a href="/reduce-claude-code-bill/"><span class="t">How to reduce your Claude Code bill</span><span class="d">Prioritized checklist — session management first, model choice later.</span></a></li>
+      <li><a href="/claude-code-cost-per-session/"><span class="t">How much does a Claude Code session cost?</span><span class="d">The $4.08 median and the full distribution.</span></a></li>
+      <li><a href="/benchmark/"><span class="t">Claude Code cost benchmark (n=66)</span><span class="d">Real session data with full spend attribution.</span></a></li>
+    </ul>
+  </div>
+</section>
+</article>
+
+<footer>
+  <div class="wrap">
+    tokenscope &mdash; local, read-only Claude Code cost &amp; context attribution.
+    MIT. Not affiliated with Anthropic. &middot; <a href="/">Home</a> &middot; <a href="https://github.com/wartzar-bee/tokenscope">GitHub</a>
+  </div>
+</footer>
+</body>
+</html>

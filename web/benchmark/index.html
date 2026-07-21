@@ -1,0 +1,633 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Code cost benchmark: what a session really costs (n=66, honest)</title>
+<meta name="description" content="An honest cost benchmark of 66 real Claude Code sessions measured with tokenscope. Median session ~$4.08; p90 ~$11.42. Median session re-sends only ~24% of spend as cached context, but pooled it's 60% — because cost concentrates in a few long sessions. A single-user reference set, clearly labelled, with percentile tables and the command to compare your own.">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://tokenscope.pages.dev/benchmark/">
+<meta property="og:title" content="Claude Code cost benchmark: what a session really costs (n=66, honest)">
+<meta property="og:description" content="66 real Claude Code sessions, measured: median ~$4.08, p90 ~$11.42. The median session re-sends ~24% of its spend as cached context; pooled it's 60% — cost concentrates in a few long sessions. A single-user reference set, honestly labelled.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://tokenscope.pages.dev/benchmark/">
+<meta property="og:site_name" content="tokenscope">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Claude Code cost benchmark (n=66, honest)">
+<meta name="twitter:description" content="Median Claude Code session ~$4.08, p90 ~$11.42. Median session re-sends ~24% of spend as cached context; pooled it's 60%. Single-user reference set, honestly labelled.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='13'%3E%E2%8F%A3%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css">
+<style>
+  /* benchmark-specific, dependency-free */
+  .tldr{background:linear-gradient(180deg,#0f1d33,#0f172a);border:1px solid #1d3350;
+    border-radius:12px;padding:18px 20px;margin:8px 0 4px}
+  .tldr h2{font-size:15px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);margin:0 0 8px}
+  .tldr p{margin:0 0 8px}
+  .tldr ul{margin:6px 0 0}
+  .toc{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 18px;margin:18px 0}
+  .toc strong{display:block;color:var(--mut);font-size:13px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+  .toc ul{list-style:none;padding:0;margin:0;columns:2;column-gap:24px}
+  @media(max-width:640px){.toc ul{columns:1}}
+  .toc li{margin:4px 0}
+  .meta-line{font-size:13px;color:var(--dim);margin:6px 0 0}
+  .nbadge{display:inline-block;background:#3b2f0a;border:1px solid #5b4708;color:var(--warn);
+    border-radius:7px;padding:3px 9px;font-size:12.5px;font-weight:700;letter-spacing:.02em}
+  figure{margin:22px 0;padding:0}
+  figure svg{width:100%;height:auto;display:block;background:var(--panel);
+    border:1px solid var(--line);border-radius:12px}
+  figcaption{color:var(--mut);font-size:13px;margin-top:8px;line-height:1.5}
+  .stat-row{display:flex;flex-wrap:wrap;gap:12px;margin:14px 0}
+  .stat{flex:1;min-width:150px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .stat .n{font-size:26px;font-weight:800;color:var(--accent);line-height:1.1}
+  .stat .l{color:var(--mut);font-size:13px;margin-top:4px}
+  .tablewrap{overflow-x:auto}
+  table{min-width:480px}
+  td.p50,th.p50{color:var(--ink);font-weight:700;background:#0f1d33}
+  .faqq{font-weight:700;color:var(--ink);margin:20px 0 4px;font-size:17px}
+  .faqa{margin:0 0 8px}
+</style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Dataset",
+      "@id": "https://tokenscope.pages.dev/benchmark/#dataset",
+      "name": "Claude Code session cost benchmark — single-user reference set (n=66)",
+      "description": "A cost and context benchmark of 66 real Claude Code (agentic coding) sessions, measured locally with the tokenscope CLI on 2026-05-29 using tokenscope's default pricing. IMPORTANT CAVEAT: this is a single-user reference set, not a census or representative survey of all Claude Code users — every session comes from one heavy user (tokenscope's own development), filtered to sessions with cost > 0 and at least 3 model turns. Per-session medians: cost $4.08 (p10 $1.63, p25 $2.10, p75 $8.31, p90 $11.42); re-sent cached context as a share of spend 24% (p10 14%, p25 19%, p75 31%, p90 46%); cache efficiency 83% (p10 69%, p90 94%); peak context 44,904 tokens (p90 86,124); model turns 29 (p90 67). Pooled across all 66 sessions: total $2,650.90 over 4,339 turns; spend split output 15% / re-sent cached context 60% / new cached context 25% / fresh input ~0%; pooled cache efficiency 98%. Headline: the median session re-sends only ~24% of its spend as cached context, but pooled it is 60%, because cost concentrates in a few long, long-context sessions where re-sent context dominates.",
+      "creator": {
+        "@type": "SoftwareApplication",
+        "name": "tokenscope",
+        "applicationCategory": "DeveloperApplication",
+        "url": "https://github.com/wartzar-bee/tokenscope"
+      },
+      "license": "https://opensource.org/licenses/MIT",
+      "isAccessibleForFree": true,
+      "dateModified": "2026-05-29",
+      "datePublished": "2026-05-29",
+      "measurementTechnique": "Local, read-only parsing of Claude Code session logs (~/.claude/projects/**/*.jsonl) by the tokenscope CLI; cost = token counts x documented Anthropic prices incl. cache multipliers (write 1.25x/2x, read 0.1x of input). Filter: sessions with cost > 0 and >= 3 model turns. n = 66 sessions from one user.",
+      "variableMeasured": [
+        {"@type": "PropertyValue", "name": "Cost per session (USD), median (p50)", "value": 4.08, "minValue": 1.63, "maxValue": 11.42, "unitText": "USD", "description": "Per-session cost percentiles: p10 1.63, p25 2.10, p50 4.08, p75 8.31, p90 11.42 USD."},
+        {"@type": "PropertyValue", "name": "Re-sent (cached) context as % of spend, median (p50)", "value": 24, "minValue": 14, "maxValue": 46, "unitText": "PERCENT", "description": "Per-session percentiles: p10 14, p25 19, p50 24, p75 31, p90 46 percent."},
+        {"@type": "PropertyValue", "name": "Cache efficiency, median (p50)", "value": 83, "minValue": 69, "maxValue": 94, "unitText": "PERCENT", "description": "Per-session percentiles: p10 69, p25 77, p50 83, p75 87, p90 94 percent."},
+        {"@type": "PropertyValue", "name": "Peak context (tokens), median (p50)", "value": 44904, "minValue": 24153, "maxValue": 86124, "description": "Per-session percentiles: p10 24153, p25 28466, p50 44904, p75 69741, p90 86124 tokens."},
+        {"@type": "PropertyValue", "name": "Model turns per session, median (p50)", "value": 29, "minValue": 15, "maxValue": 67, "description": "Per-session percentiles: p10 15, p25 18, p50 29, p75 39, p90 67 turns."},
+        {"@type": "PropertyValue", "name": "Pooled total cost (USD)", "value": 2650.90, "unitText": "USD", "description": "Sum across all 66 sessions, over 4,339 model turns."},
+        {"@type": "PropertyValue", "name": "Pooled spend share: re-sent cached context", "value": 60, "unitText": "PERCENT"},
+        {"@type": "PropertyValue", "name": "Pooled spend share: new cached context (cache write)", "value": 25, "unitText": "PERCENT"},
+        {"@type": "PropertyValue", "name": "Pooled spend share: output", "value": 15, "unitText": "PERCENT"},
+        {"@type": "PropertyValue", "name": "Pooled cache efficiency", "value": 98, "unitText": "PERCENT"}
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://tokenscope.pages.dev/benchmark/#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "How much does a Claude Code session cost?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "In this single-user reference set of 66 real sessions, the median session cost about $4.08. The middle half ran from about $2.10 (p25) to $8.31 (p75); the cheapest tenth were under ~$1.63 and the most expensive tenth were over ~$11.42. These are sessions filtered to cost > 0 and at least 3 model turns, all from one heavy user, so treat them as a reference set, not a population average. Your sessions will differ with how long you run and how big your context grows."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Why is Claude Code so expensive?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Cost concentrates in a few long sessions, and in those, re-sent context is the bill. The model is stateless, so the whole conversation context is re-sent every turn; with prompt caching that re-send is billed at the discounted cache-read rate but paid every turn on the entire accumulated context. The typical (median) session re-sends only about 24% of its spend as cached context, but pooled across all sessions it is 60% — because a handful of long, long-context sessions dominate the total. So 'Claude Code is expensive' is really 'a few long sessions are expensive, and in those, re-sent context is the bill.'"
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What percentage of Claude Code cost is re-sent context?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "It depends on whether you weight by session or by dollar. In a typical (median) session it is about 24% of spend (p25 19%, p75 31%, p90 46%). But pooled across all 66 sessions — i.e. weighted by dollar — it is 60% of total spend, with new cached context (cache write) 25%, output 15%, and fresh input roughly 0%. The gap is the whole story: re-sent context is a minority of most sessions but the majority of total dollars, because the expensive long sessions are the ones where it dominates."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is this a benchmark of all Claude Code users?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. This is a single-user reference set: all 66 sessions come from one heavy user (tokenscope's own development), measured on 2026-05-29 with tokenscope's default pricing, filtered to cost > 0 and at least 3 model turns. It is not a census, not a representative survey, and not an average across users. It is an honest reference set that shows the shape of real sessions and gives you numbers to compare your own against. We plan to re-measure and grow it as people opt in to share their (aggregate, anonymous) numbers."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I compare my own Claude Code session to this benchmark?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Run npx @wartzar-bee/tokenscope --share in your terminal. tokenscope reads your Claude Code logs locally (read-only, nothing uploaded) and prints your cost, your re-sent-context share, your cache efficiency, your peak context, and your turn count — the exact metrics tabulated on this page — so you can see which percentile your session lands in. The --share flag also produces a self-contained card (aggregate numbers only, no file paths or prompt content) that links back to this benchmark."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is a good cache efficiency for Claude Code?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "In this reference set the median session ran at about 83% cache efficiency, with the middle half between 77% (p25) and 87% (p75) and the top tenth above 94%. Higher is generally better — it means more of your re-sent context is hitting the cheap cache-read path rather than being re-billed at full input price. Pooled across all sessions the figure is 98%, because the long sessions that dominate spend also keep the cache warm. Cache efficiency tells you how cheap your re-sends are; it does not tell you how much you are re-sending — for that, look at the re-sent-context share of spend."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How big does the context window get in a real session?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "In this reference set, peak context in a typical (median) session was about 44,904 tokens; the middle half ran from ~28,466 (p25) to ~69,741 (p75), and the top tenth peaked above ~86,124 tokens. Pooled, the heaviest session in the set peaked at 999,541 tokens and the average peak across sessions was 251,371 tokens — the long sessions reach far higher than the median, which is exactly why they cost the most: every token in context is re-sent on every following turn."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Should I trust this single-user benchmark?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Trust the shape, verify the numbers against your own. The structural finding — cost concentrates in a few long sessions, and re-sent context dominates those — is a property of stateless models plus per-turn context re-send, and it will hold for most users. The specific percentiles are one heavy user's actual sessions on 2026-05-29 with tokenscope's default pricing; a lighter user, a different project mix, or different prices would shift them. The numbers are not fabricated and not adjusted; they are tokenscope's raw output. Run tokenscope on your own logs to see where you land."
+          }
+        }
+      ]
+    }
+  ]
+}
+</script>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <div class="brand"><a href="/">tokenscope &#9187;</a></div>
+    <div class="crumbs"><a href="/">Home</a> &rsaquo; Cost benchmark</div>
+    <h1>Claude Code cost benchmark: <span class="hl">what a session really costs</span></h1>
+    <p class="sub">We measured <strong>66 real Claude Code sessions</strong> with tokenscope. The
+      <strong>median session cost ~$4.08</strong>; the top tenth ran past <strong>~$11.42</strong>. The
+      interesting part: the <em>typical</em> session re-sends only <strong>~24%</strong> of its spend as
+      cached context &mdash; but <em>pooled</em>, it's <strong>60%</strong>, because cost concentrates in a
+      few long sessions.</p>
+    <p class="meta-line"><span class="nbadge">n = 66 sessions &middot; SINGLE user &middot; reference set</span>
+      &nbsp; Measured with the tokenscope CLI &middot; default pricing &middot; 2026-05-29 &middot; no trackers,
+      no cookies, no analytics.</p>
+  </div>
+</header>
+
+<article>
+
+<section>
+  <div class="wrap">
+    <div class="tldr">
+      <h2>TL;DR &mdash; the honest answer</h2>
+      <p>Across <strong>66 real Claude Code sessions</strong> from <strong>one heavy user</strong> (this is a
+        reference set, not a census), the <strong>median session cost ~$4.08</strong> over ~29 model turns;
+        the middle half ran <strong>$2.10&ndash;$8.31</strong> and the top tenth passed <strong>$11.42</strong>.
+        The headline is the split between <em>typical</em> and <em>total</em>:</p>
+      <ul>
+        <li>In the <strong>median session</strong>, re-sent (cached) context is only <strong>~24%</strong> of
+          spend. Most sessions are short and cheap, and output/new context carry the bill.</li>
+        <li><strong>Pooled across all 66 sessions, re-sent context is 60%</strong> of total dollars &mdash;
+          because a few long, long-context sessions dominate the total, and in those, re-sent context is the bill.</li>
+      </ul>
+      <p style="margin-bottom:0">So &ldquo;Claude Code is expensive&rdquo; is really <strong>&ldquo;a few long
+        sessions are expensive, and in those, re-sent context is the bill.&rdquo;</strong> To compare your own,
+        run <code>npx @wartzar-bee/tokenscope --share</code>.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="toc">
+      <strong>On this page</strong>
+      <ul>
+        <li><a href="#cost">How much does a session cost?</a></li>
+        <li><a href="#expensive">Why is Claude Code so expensive?</a></li>
+        <li><a href="#resent">What % of cost is re-sent context?</a></li>
+        <li><a href="#efficiency">Cache efficiency &amp; peak context</a></li>
+        <li><a href="#turns">Turns per session</a></li>
+        <li><a href="#tables">All percentile tables</a></li>
+        <li><a href="#compare">How do I compare my own?</a></li>
+        <li><a href="#method">Methodology</a></li>
+        <li><a href="#limits">Limitations</a></li>
+        <li><a href="#faq">FAQ</a></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="cost">
+  <div class="wrap">
+    <h2>How much does a Claude Code session cost?</h2>
+    <div class="stat-row">
+      <div class="stat"><div class="n">$4.08</div><div class="l">median (p50) cost / session</div></div>
+      <div class="stat"><div class="n">$2.10&ndash;$8.31</div><div class="l">middle half (p25&ndash;p75)</div></div>
+      <div class="stat"><div class="n">$11.42</div><div class="l">p90 (top tenth above this)</div></div>
+      <div class="stat"><div class="n">66</div><div class="l">sessions, one user</div></div>
+    </div>
+    <p>The <strong>median Claude Code session in this reference set cost about $4.08</strong>. Half of all
+      sessions fell between roughly <strong>$2.10 (p25)</strong> and <strong>$8.31 (p75)</strong>; the cheapest
+      tenth were under <strong>$1.63</strong> and the most expensive tenth were over <strong>$11.42</strong>.
+      The distribution is right-skewed &mdash; a long tail of pricier sessions pulls the total up well above the
+      typical session.</p>
+
+    <figure>
+      <!-- CHART 1: per-session cost percentile bars. Plot x:120..760 (width 640), scale 0..$12. bar h 22, gap. -->
+      <svg viewBox="0 0 800 300" role="img" xmlns="http://www.w3.org/2000/svg"
+           aria-label="Per-session cost percentiles for 66 Claude Code sessions: p10 $1.63, p25 $2.10, p50 (median) $4.08, p75 $8.31, p90 $11.42.">
+        <text x="20" y="30" fill="#e2e8f0" font-family="ui-sans-serif,system-ui,sans-serif" font-size="17" font-weight="700">Cost per session (USD) &mdash; percentiles, n=66</text>
+        <text x="20" y="50" fill="#94a3b8" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12.5">Single user, reference set. The median is far below the p90 &mdash; a right-skewed tail.</text>
+        <g font-family="ui-sans-serif,system-ui,sans-serif" font-size="13">
+          <!-- scale: x = 120 + (value/12)*640.  p10 1.63->206.9  p25 2.10->232.0  p50 4.08->337.6  p75 8.31->563.2  p90 11.42->729.1 -->
+          <!-- p10 -->
+          <text x="110" y="89" text-anchor="end" fill="#94a3b8">p10</text>
+          <rect x="120" y="76" width="86.9" height="22" rx="4" fill="#34d399" fill-opacity="0.55"/>
+          <text x="214.9" y="92" fill="#cbd5e1" font-family="ui-monospace,Menlo,monospace" font-size="12.5">$1.63</text>
+          <!-- p25 -->
+          <text x="110" y="123" text-anchor="end" fill="#94a3b8">p25</text>
+          <rect x="120" y="110" width="112.0" height="22" rx="4" fill="#34d399" fill-opacity="0.7"/>
+          <text x="240.0" y="126" fill="#cbd5e1" font-family="ui-monospace,Menlo,monospace" font-size="12.5">$2.10</text>
+          <!-- p50 -->
+          <text x="110" y="157" text-anchor="end" fill="#e2e8f0" font-weight="700">p50</text>
+          <rect x="120" y="144" width="217.6" height="22" rx="4" fill="#34d399"/>
+          <text x="345.6" y="160" fill="#e2e8f0" font-family="ui-monospace,Menlo,monospace" font-size="12.5" font-weight="700">$4.08 (median)</text>
+          <!-- p75 -->
+          <text x="110" y="191" text-anchor="end" fill="#94a3b8">p75</text>
+          <rect x="120" y="178" width="443.2" height="22" rx="4" fill="#fbbf24" fill-opacity="0.85"/>
+          <text x="571.2" y="194" fill="#cbd5e1" font-family="ui-monospace,Menlo,monospace" font-size="12.5">$8.31</text>
+          <!-- p90 -->
+          <text x="110" y="225" text-anchor="end" fill="#94a3b8">p90</text>
+          <rect x="120" y="212" width="609.1" height="22" rx="4" fill="#fbbf24"/>
+          <text x="737.1" y="228" fill="#cbd5e1" font-family="ui-monospace,Menlo,monospace" font-size="12.5">$11.42</text>
+          <!-- x axis -->
+          <line x1="120" y1="250" x2="760" y2="250" stroke="#1e293b"/>
+          <g font-family="ui-monospace,Menlo,monospace" font-size="11" fill="#64748b" text-anchor="middle">
+            <text x="120" y="268">$0</text>
+            <text x="280" y="268">$3</text>
+            <text x="440" y="268">$6</text>
+            <text x="600" y="268">$9</text>
+            <text x="760" y="268">$12</text>
+          </g>
+        </g>
+      </svg>
+      <figcaption>Figure 1 &mdash; Per-session cost percentiles across 66 real sessions (single user). The
+        median session ($4.08) costs roughly a third of a p90 session ($11.42): the typical session is cheap,
+        and the expensive tail is what runs up a monthly bill.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section id="expensive">
+  <div class="wrap">
+    <h2>Why is Claude Code so expensive? (typical vs. total)</h2>
+    <p>The single most useful thing in this data is the gap between the <em>typical session</em> and the
+      <em>total bill</em>. Pooled across all 66 sessions, the spend split is:</p>
+
+    <figure>
+      <!-- CHART 2: pooled spend split segmented bar. track x:20..780 (width 760). order: output, re-sent, new-cached, fresh.
+           widths: output 15%->114.0  re-sent 60%->456.0  new-cached 25%->190.0  fresh ~0% -->
+      <svg viewBox="0 0 800 230" role="img" xmlns="http://www.w3.org/2000/svg"
+           aria-label="Pooled spend split across 66 sessions: re-sent cached context 60%, new cached context (cache write) 25%, output 15%, fresh input about 0%.">
+        <text x="20" y="34" fill="#e2e8f0" font-family="ui-sans-serif,system-ui,sans-serif" font-size="17" font-weight="700">Pooled spend split &mdash; all 66 sessions, total $2,650.90</text>
+        <text x="20" y="54" fill="#94a3b8" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12.5">Weighted by dollar across 4,339 turns. Re-sent context dominates the total &mdash; but not the median session.</text>
+        <!-- track -->
+        <rect x="20" y="78" width="760" height="56" rx="9" fill="#111c33" stroke="#1e293b"/>
+        <!-- segments: output (cyan) 114.0, re-sent (amber) 456.0, new-cached (purple) 190.0 -->
+        <rect x="20"    y="78" width="114.0" height="56" fill="#22d3ee"/>
+        <rect x="134.0" y="78" width="456.0" height="56" fill="#fbbf24"/>
+        <rect x="590.0" y="78" width="190.0" height="56" fill="#c084fc"/>
+        <rect x="20" y="78" width="760" height="56" rx="9" fill="none" stroke="#1e293b"/>
+        <!-- in-segment labels -->
+        <text x="77"  y="110" fill="#06281b" font-family="ui-sans-serif,system-ui,sans-serif" font-size="13" font-weight="800" text-anchor="middle">15%</text>
+        <text x="362" y="110" fill="#06281b" font-family="ui-sans-serif,system-ui,sans-serif" font-size="14" font-weight="800" text-anchor="middle">60%</text>
+        <text x="362" y="124" fill="#06281b" font-family="ui-sans-serif,system-ui,sans-serif" font-size="11" text-anchor="middle">re-sent context</text>
+        <text x="685" y="110" fill="#1a0b2e" font-family="ui-sans-serif,system-ui,sans-serif" font-size="14" font-weight="800" text-anchor="middle">25%</text>
+        <!-- legend -->
+        <g font-family="ui-sans-serif,system-ui,sans-serif" font-size="13">
+          <rect x="20"  y="168" width="13" height="13" rx="3" fill="#fbbf24"/>
+          <text x="40"  y="179" fill="#cbd5e1">Re-sent context (cache-read) &nbsp;<tspan fill="#94a3b8">60%</tspan></text>
+          <rect x="20"  y="192" width="13" height="13" rx="3" fill="#c084fc"/>
+          <text x="40"  y="203" fill="#cbd5e1">New cached context (cache-write) &nbsp;<tspan fill="#94a3b8">25%</tspan></text>
+          <rect x="430" y="168" width="13" height="13" rx="3" fill="#22d3ee"/>
+          <text x="450" y="179" fill="#cbd5e1">Output &mdash; the model writing &nbsp;<tspan fill="#94a3b8">15%</tspan></text>
+          <rect x="430" y="192" width="13" height="13" rx="3" fill="#34d399"/>
+          <text x="450" y="203" fill="#cbd5e1">Fresh input &nbsp;<tspan fill="#94a3b8">~0%</tspan></text>
+        </g>
+      </svg>
+      <figcaption>Figure 2 &mdash; Pooled (dollar-weighted) spend split across all 66 sessions. Re-sent cached
+        context is 60% of total dollars. Compare this to the <em>median session</em>, where re-sent context is
+        only ~24% of spend.</figcaption>
+    </figure>
+
+    <p>Here is the apparent contradiction, stated plainly: the <strong>median session re-sends only ~24% of its
+      spend</strong> as cached context, yet <strong>pooled it's 60%</strong>. Both numbers are real. They differ
+      because they weight differently:</p>
+    <ul>
+      <li><strong>Per-session (the median) weights every session equally.</strong> Most sessions are short
+        &mdash; ~29 turns, peaking around 45k tokens of context. In a short session the model hasn't re-sent the
+        context many times yet, so output and newly-written context are a bigger relative slice. Re-sent context
+        is a minority: ~24%.</li>
+      <li><strong>Pooled weights every dollar equally.</strong> The total is dominated by a handful of long,
+        long-context sessions (peaks up to 999,541 tokens, 67+ turns). In <em>those</em>, the same big context is
+        re-sent turn after turn, so re-sent context balloons &mdash; up to 46% of spend in the p90 session and
+        more in the extremes. Because those sessions hold most of the dollars, they drag the pooled re-sent share
+        up to 60%.</li>
+    </ul>
+    <div class="callout">
+      <strong>The honest headline:</strong> &ldquo;Claude Code is expensive&rdquo; is really <em>&ldquo;a few
+      long sessions are expensive, and in those, re-sent context is the bill.&rdquo;</em> Your typical session is
+      cheap and balanced; your <em>monthly total</em> is decided by a few long-context marathons where re-sent
+      context dominates. That is where the leverage is &mdash; <code>/compact</code> and fresh sessions on the
+      long ones.
+    </div>
+  </div>
+</section>
+
+<section id="resent">
+  <div class="wrap">
+    <h2>What % of Claude Code cost is re-sent context?</h2>
+    <p>It depends entirely on whether you measure a typical session or the total bill. Per session, the
+      distribution of <strong>re-sent (cached) context as a share of spend</strong> looks like this:</p>
+
+    <figure>
+      <!-- CHART 3: re-sent context % percentile bars. Plot x:120..760 (width 640), scale 0..50%. pooled marker at 60% (off-scale note). -->
+      <svg viewBox="0 0 800 300" role="img" xmlns="http://www.w3.org/2000/svg"
+           aria-label="Re-sent cached context as a share of spend, per-session percentiles: p10 14%, p25 19%, p50 24%, p75 31%, p90 46%. Pooled across all sessions it is 60%.">
+        <text x="20" y="30" fill="#e2e8f0" font-family="ui-sans-serif,system-ui,sans-serif" font-size="17" font-weight="700">Re-sent context as % of spend &mdash; per session, n=66</text>
+        <text x="20" y="50" fill="#94a3b8" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12.5">Even the p90 session (46%) is below the pooled, dollar-weighted figure of 60%.</text>
+        <g font-family="ui-sans-serif,system-ui,sans-serif" font-size="13">
+          <!-- scale: x = 120 + (value/50)*640.  p10 14->299.2  p25 19->363.2  p50 24->427.2  p75 31->516.8  p90 46->708.8 -->
+          <text x="110" y="89" text-anchor="end" fill="#94a3b8">p10</text>
+          <rect x="120" y="76" width="179.2" height="22" rx="4" fill="#fbbf24" fill-opacity="0.45"/>
+          <text x="307.2" y="92" fill="#cbd5e1" font-family="ui-monospace,Menlo,monospace" font-size="12.5">14%</text>
+          <text x="110" y="123" text-anchor="end" fill="#94a3b8">p25</text>
+          <rect x="120" y="110" width="243.2" height="22" rx="4" fill="#fbbf24" fill-opacity="0.6"/>
+          <text x="371.2" y="126" fill="#cbd5e1" font-family="ui-monospace,Menlo,monospace" font-size="12.5">19%</text>
+          <text x="110" y="157" text-anchor="end" fill="#e2e8f0" font-weight="700">p50</text>
+          <rect x="120" y="144" width="307.2" height="22" rx="4" fill="#fbbf24" fill-opacity="0.78"/>
+          <text x="435.2" y="160" fill="#e2e8f0" font-family="ui-monospace,Menlo,monospace" font-size="12.5" font-weight="700">24% (median)</text>
+          <text x="110" y="191" text-anchor="end" fill="#94a3b8">p75</text>
+          <rect x="120" y="178" width="396.8" height="22" rx="4" fill="#fbbf24" fill-opacity="0.9"/>
+          <text x="524.8" y="194" fill="#cbd5e1" font-family="ui-monospace,Menlo,monospace" font-size="12.5">31%</text>
+          <text x="110" y="225" text-anchor="end" fill="#94a3b8">p90</text>
+          <rect x="120" y="212" width="588.8" height="22" rx="4" fill="#fbbf24"/>
+          <text x="716.8" y="228" fill="#cbd5e1" font-family="ui-monospace,Menlo,monospace" font-size="12.5">46%</text>
+          <!-- pooled reference line at 60% -> x = 120 + 0.6*640 = wait 60 off 50-scale -> clamp; draw dashed at 100% edge with label -->
+          <!-- x axis -->
+          <line x1="120" y1="250" x2="760" y2="250" stroke="#1e293b"/>
+          <g font-family="ui-monospace,Menlo,monospace" font-size="11" fill="#64748b" text-anchor="middle">
+            <text x="120" y="268">0%</text>
+            <text x="248" y="268">10%</text>
+            <text x="376" y="268">20%</text>
+            <text x="504" y="268">30%</text>
+            <text x="632" y="268">40%</text>
+            <text x="760" y="268">50%</text>
+          </g>
+          <text x="760" y="288" text-anchor="end" fill="#fbbf24" font-size="12">Pooled (dollar-weighted) across all 66 sessions = 60% &rarr; off this 0&ndash;50% scale</text>
+        </g>
+      </svg>
+      <figcaption>Figure 3 &mdash; Re-sent (cached) context as a share of spend, per session. Note that even the
+        p90 session (46%) sits below the pooled figure of 60% &mdash; the pooled number is pulled up by the few
+        sessions beyond p90 where re-sent context runs higher still.</figcaption>
+    </figure>
+
+    <p>So the answer to &ldquo;what percent of Claude Code cost is re-sent context?&rdquo; is:
+      <strong>about 24% in a typical session, but 60% of total dollars</strong>. If someone quotes a single
+      number, ask which one they mean.</p>
+  </div>
+</section>
+
+<section id="efficiency">
+  <div class="wrap">
+    <h2>Cache efficiency &amp; peak context</h2>
+    <p>Two more metrics tokenscope reports per session. <strong>Cache efficiency</strong> is how much of your
+      re-sent context hit the cheap cache-read path rather than full input price &mdash; higher is better.
+      <strong>Peak context</strong> is the largest the context window grew during the session.</p>
+    <div class="stat-row">
+      <div class="stat"><div class="n">83%</div><div class="l">median cache efficiency (p25&ndash;p75: 77&ndash;87%)</div></div>
+      <div class="stat"><div class="n">98%</div><div class="l">pooled cache efficiency (all sessions)</div></div>
+      <div class="stat"><div class="n">44.9k</div><div class="l">median peak context tokens</div></div>
+      <div class="stat"><div class="n">999.5k</div><div class="l">heaviest session peak; avg peak 251.4k</div></div>
+    </div>
+    <p>The pattern echoes the cost story: the median session peaks around <strong>44,904 tokens</strong>, but the
+      heaviest session in the set peaked at <strong>999,541 tokens</strong> and the average peak across all
+      sessions was <strong>251,371 tokens</strong> &mdash; the long sessions reach far higher, which is exactly
+      why they cost the most. Pooled cache efficiency (98%) is higher than the median session's (83%) because the
+      big long sessions that dominate spend also keep the cache warm.</p>
+  </div>
+</section>
+
+<section id="turns">
+  <div class="wrap">
+    <h2>How many turns is a typical session?</h2>
+    <p>A &ldquo;model turn&rdquo; is one request/response round-trip. The median session ran
+      <strong>29 turns</strong>; the middle half was <strong>18&ndash;39</strong>, and the top tenth ran past
+      <strong>67 turns</strong>. Pooled across all 66 sessions there were <strong>4,339 turns</strong> &mdash;
+      and the turn count tracks cost closely, because more turns means the accumulated context gets re-sent more
+      times.</p>
+  </div>
+</section>
+
+<section id="tables">
+  <div class="wrap">
+    <h2>All percentile tables</h2>
+    <p>The complete per-session distribution, so you can quote or check any figure. <strong>p50 is the
+      median.</strong> All from 66 real sessions (single user), measured 2026-05-29 with tokenscope's default
+      pricing.</p>
+
+    <h3>Per-session percentiles</h3>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Metric</th><th class="num">p10</th><th class="num">p25</th><th class="num p50">p50 (median)</th><th class="num">p75</th><th class="num">p90</th></tr></thead>
+      <tbody>
+        <tr><td>Cost per session (USD)</td><td class="num">$1.63</td><td class="num">$2.10</td><td class="num p50">$4.08</td><td class="num">$8.31</td><td class="num">$11.42</td></tr>
+        <tr><td>Re-sent (cached) context as % of spend</td><td class="num">14%</td><td class="num">19%</td><td class="num p50">24%</td><td class="num">31%</td><td class="num">46%</td></tr>
+        <tr><td>Cache efficiency %</td><td class="num">69%</td><td class="num">77%</td><td class="num p50">83%</td><td class="num">87%</td><td class="num">94%</td></tr>
+        <tr><td>Peak context (tokens)</td><td class="num">24,153</td><td class="num">28,466</td><td class="num p50">44,904</td><td class="num">69,741</td><td class="num">86,124</td></tr>
+        <tr><td>Model turns per session</td><td class="num">15</td><td class="num">18</td><td class="num p50">29</td><td class="num">39</td><td class="num">67</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>Pooled aggregate (all 66 sessions)</h3>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Pooled metric</th><th class="num">Value</th></tr></thead>
+      <tbody>
+        <tr><td>Total cost</td><td class="num">$2,650.90</td></tr>
+        <tr><td>Total model turns</td><td class="num">4,339</td></tr>
+        <tr><td>Spend share &mdash; re-sent context (cache-read)</td><td class="num">60%</td></tr>
+        <tr><td>Spend share &mdash; new cached context (cache-write)</td><td class="num">25%</td></tr>
+        <tr><td>Spend share &mdash; output</td><td class="num">15%</td></tr>
+        <tr><td>Spend share &mdash; fresh input</td><td class="num">~0%</td></tr>
+        <tr><td>Pooled cache efficiency</td><td class="num">98%</td></tr>
+        <tr><td>Peak context (heaviest session)</td><td class="num">999,541 tok</td></tr>
+        <tr><td>Average peak context</td><td class="num">251,371 tok</td></tr>
+        <tr><td>Sessions in set</td><td class="num">n = 66 (single user)</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="small">Reference set, not a census. Pooled spend shares are dollar-weighted across all sessions;
+      per-session percentiles weight every session equally. The two views differ because cost concentrates in a
+      few long sessions &mdash; that's the whole point of this page.</p>
+  </div>
+</section>
+
+<section id="compare">
+  <div class="wrap">
+    <h2>How do I compare my own session?</h2>
+    <p>Run one command. tokenscope reads your Claude Code logs locally (read-only, nothing uploaded) and prints
+      the exact metrics on this page &mdash; your cost, your re-sent-context share, your cache efficiency, your
+      peak context, your turn count &mdash; so you can see which percentile your sessions land in.</p>
+    <div class="cta">
+      <h3>Benchmark your own sessions</h3>
+      <div class="cmd">
+        <code>npx @wartzar-bee/tokenscope --share</code>
+        <a class="btnlink" href="/#try">Paste a report in your browser &rarr;</a>
+      </div>
+      <p style="margin:12px 0 0">The <code>--share</code> flag also produces a self-contained card (aggregate
+        numbers only &mdash; no file paths, no prompt or response content) that links back to this benchmark
+        (<code>benchmark: tokenscope.pages.dev/benchmark</code>).</p>
+      <p class="small" style="margin-bottom:0">Read-only, local, no upload, no telemetry. MIT. Not affiliated
+        with Anthropic.</p>
+    </div>
+  </div>
+</section>
+
+<section id="method">
+  <div class="wrap">
+    <h2>Methodology</h2>
+    <p>How these numbers were produced, in full:</p>
+    <ul>
+      <li><strong>Source.</strong> 66 real Claude Code sessions, measured on <strong>2026-05-29</strong> with the
+        <a href="https://github.com/wartzar-bee/tokenscope">tokenscope</a> CLI, which reads Claude Code's local
+        session logs (<code>~/.claude/projects/**/*.jsonl</code>) <strong>read-only</strong> and attributes cost
+        by multiplying the token counts in those logs by documented Anthropic prices, including cache multipliers
+        (write 1.25&times;/2&times;, read 0.1&times; of input).</li>
+      <li><strong>Filter.</strong> Sessions were included only if <strong>cost &gt; 0</strong> and they had
+        <strong>at least 3 model turns</strong>. This drops trivial or aborted runs that would otherwise skew the
+        low percentiles. After filtering, n = 66.</li>
+      <li><strong>Pricing.</strong> tokenscope's <strong>default pricing</strong> was used (the documented
+        Anthropic defaults; overridable in <code>.tokenscope.json</code>). Prices vary by tier and over time, so
+        verify current pricing for your own account.</li>
+      <li><strong>Single user.</strong> Every one of the 66 sessions comes from <strong>one heavy user</strong>
+        &mdash; tokenscope's own development. This is a <strong>reference set</strong>, not a census or a
+        representative survey of all Claude Code users.</li>
+      <li><strong>Two views.</strong> Per-session percentiles weight every session equally (the median session).
+        Pooled aggregates weight every dollar equally (the total bill). They differ on purpose &mdash; that gap
+        is the finding.</li>
+      <li><strong>It will grow.</strong> We plan to re-measure this set and grow it as people opt in to share
+        their aggregate, anonymous numbers via <code>--share</code>. Until then, treat it as one honest data
+        point with enough sessions to show a distribution.</li>
+      <li><strong>Charts are hand-coded SVG.</strong> Every figure is deterministic SVG drawn in markup &mdash;
+        no chart library, no image generation, no external assets. Bar lengths are computed directly from the
+        percentile values above.</li>
+      <li><strong>No trackers.</strong> This page loads no scripts, no fonts, no analytics, and sets no cookies.
+        You can read it offline.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="limits">
+  <div class="wrap">
+    <h2>Limitations (read this)</h2>
+    <ul>
+      <li><strong>Single user, not a population.</strong> All 66 sessions are from one heavy user on one set of
+        projects. A lighter user, a different language/stack, or a different working style would shift every
+        percentile. Do not read these as &ldquo;the average Claude Code user.&rdquo;</li>
+      <li><strong>Self-measurement.</strong> The user being measured is also the tool's author. We have not
+        adjusted, trimmed, or curated the numbers &mdash; they are tokenscope's raw output &mdash; but a single
+        self-measured source is inherently narrow.</li>
+      <li><strong>One day, one price sheet.</strong> Measured on 2026-05-29 with default pricing. Anthropic
+        prices and cache multipliers change; a re-measurement at different rates would move the dollar figures
+        even on the same sessions.</li>
+      <li><strong>n = 66 is enough for a shape, not a guarantee.</strong> 66 sessions show a distribution and a
+        clear skew, but the tail (p90 and beyond) rests on a small number of long sessions, so the extreme
+        percentiles are the least stable.</li>
+      <li><strong>The mechanic generalizes; the numbers don't.</strong> &ldquo;Cost concentrates in a few long
+        sessions, and in those re-sent context dominates&rdquo; is structural and should hold broadly. The exact
+        $4.08 median and 24%/60% split are this reference set's actual figures and yours will differ.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <h2>FAQ</h2>
+
+    <p class="faqq">How much does a Claude Code session cost?</p>
+    <p class="faqa">In this single-user reference set of 66 real sessions, the median session cost about
+      <strong>$4.08</strong>. The middle half ran from ~$2.10 (p25) to ~$8.31 (p75); the cheapest tenth were
+      under ~$1.63 and the most expensive tenth were over ~$11.42. These are sessions filtered to cost &gt; 0 and
+      at least 3 model turns, all from one heavy user &mdash; a reference set, not a population average.</p>
+
+    <p class="faqq">Why is Claude Code so expensive?</p>
+    <p class="faqa">Cost concentrates in a few long sessions, and in those, re-sent context is the bill. The
+      typical (median) session re-sends only ~24% of its spend as cached context, but pooled across all sessions
+      it is 60% &mdash; because a handful of long, long-context sessions dominate the total. So &ldquo;Claude Code
+      is expensive&rdquo; is really &ldquo;a few long sessions are expensive, and in those, re-sent context is
+      the bill.&rdquo;</p>
+
+    <p class="faqq">What percentage of Claude Code cost is re-sent context?</p>
+    <p class="faqa">About <strong>24% in a typical session</strong> (p25 19%, p75 31%, p90 46%), but
+      <strong>60% of total dollars</strong> when pooled across all sessions (new cached context 25%, output 15%,
+      fresh input ~0%). The gap is the whole story: re-sent context is a minority of most sessions but the
+      majority of total spend.</p>
+
+    <p class="faqq">Is this a benchmark of all Claude Code users?</p>
+    <p class="faqa">No. It is a single-user reference set: all 66 sessions come from one heavy user (tokenscope's
+      own development), measured 2026-05-29 with default pricing, filtered to cost &gt; 0 and &ge; 3 turns. It is
+      not a census, not a representative survey, and not an average across users. We plan to re-measure and grow
+      it as people opt in to share aggregate, anonymous numbers.</p>
+
+    <p class="faqq">How do I compare my own Claude Code session to this?</p>
+    <p class="faqa">Run <code>npx @wartzar-bee/tokenscope --share</code>. tokenscope reads your logs locally
+      (read-only, nothing uploaded) and prints your cost, re-sent-context share, cache efficiency, peak context,
+      and turn count &mdash; the exact metrics on this page &mdash; so you can see which percentile you land in.</p>
+
+    <p class="faqq">What is a good cache efficiency?</p>
+    <p class="faqa">The median session here ran at ~83% (p25 77%, p75 87%, p90 94%). Higher is generally better
+      &mdash; it means more of your re-sent context hits the cheap cache-read path. Pooled it is 98%, because the
+      long sessions that dominate spend keep the cache warm. Cache efficiency tells you how cheap your re-sends
+      are, not how much you are re-sending.</p>
+
+    <p class="faqq">How big does the context window get?</p>
+    <p class="faqa">Median peak context was ~44,904 tokens (p25 ~28,466, p75 ~69,741, p90 ~86,124). Pooled, the
+      heaviest session peaked at 999,541 tokens and the average peak was 251,371 tokens &mdash; the long sessions
+      reach far higher, which is why they cost the most.</p>
+
+    <p class="faqq">Should I trust this single-user benchmark?</p>
+    <p class="faqa">Trust the shape, verify the numbers against your own. The structural finding (cost
+      concentrates in a few long sessions; re-sent context dominates those) should hold broadly. The specific
+      percentiles are one heavy user's actual sessions and would shift for a different user, project mix, or
+      price sheet. The numbers are not fabricated or adjusted &mdash; run tokenscope on your own logs to see
+      where you land.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Related reading</h2>
+    <ul class="related">
+      <li><a href="/study/"><span class="t">Data study: Anatomy of a Claude Code session (n=1)</span><span class="d">One long session in detail &mdash; ~$1,278, 66% re-sent context. The single-session view behind this benchmark's tail.</span></a></li>
+      <li><a href="/why-is-claude-code-so-expensive/"><span class="t">Why is Claude Code so expensive?</span><span class="d">The short, plain-language version of the mechanic.</span></a></li>
+      <li><a href="/reduce-claude-code-bill/"><span class="t">How to reduce your Claude Code bill</span><span class="d">The concrete checklist for the long sessions that run up the total.</span></a></li>
+      <li><a href="/when-to-use-compact-claude-code/"><span class="t">When to use /compact in Claude Code</span><span class="d">How to shrink the long sessions where re-sent context dominates.</span></a></li>
+      <li><a href="/claude-code-context-window-cost/"><span class="t">Claude Code context window cost</span><span class="d">Translating peak context into per-turn dollars.</span></a></li>
+    </ul>
+  </div>
+</section>
+
+</article>
+
+<footer>
+  <div class="wrap">
+    <p>An honest cost benchmark by <a href="/">tokenscope</a> &mdash; local, read-only Claude Code cost &amp;
+      context attribution. n = 66 real sessions from a single user, clearly labelled as a reference set; no
+      fabricated, adjusted, or representative-survey claims. No trackers, no cookies, no analytics. Free to read
+      and cite.</p>
+    <p class="small">MIT. Not affiliated with or endorsed by Anthropic. Numbers were produced by the tokenscope
+      CLI from local logs on 2026-05-29 with default pricing; verify current Anthropic pricing for your account.
+      &middot; <a href="https://github.com/wartzar-bee/tokenscope">GitHub</a> &middot;
+      <code>@wartzar-bee/tokenscope</code> on npm</p>
+  </div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,38 @@
+# Anatomy of a Claude Code session: where the money actually goes
+
+> A data study of ONE real Claude Code (agentic coding) session, measured locally with the tokenscope CLI. n=1 — one real session, not an average, not an aggregate, not a benchmark. The session cost ~$1,278 over ~1,270 model turns, and re-sent cached context (cache-read) was the dominant line at 66% of cost — far more than the model writing code (14%). No trackers, no fabricated or aggregate statistics. Free to read and cite.
+
+## Key facts (safe to quote — all from this single session, n=1)
+
+- Total session cost: ~$1,278 over ~1,270 model turns. (One real session; not an average.)
+- Cost split: cache-read (re-sent context) 66% (~$843); cache-write (new context) 20% (~$256); output (model writing) 14% (~$179); fresh input ~0% (~$0). 179 + 843 + 256 = 1278.
+- Peak context: ~998,000 tokens. Cache hit rate (efficiency): ~98%.
+- Counter-intuitive headline: most of a long session's cost is NOT the model thinking/writing — it is re-sending the same accumulated context on every turn.
+
+## Why re-sent context dominates
+
+- The model is stateless, so the client re-sends the entire conversation context every turn. Prompt caching bills that re-send at ~0.1x the input price (cache-read), but it is paid every turn on the whole accumulated context.
+- cache-read cost ≈ context size × number of turns × input price × 0.1. A large context (here peaking near 998k tokens) over many turns (here ~1,270) makes that small per-turn rate the biggest line, even at a ~98% cache hit rate.
+- Output is priced higher per token than input, but the model writes far fewer tokens than the context it re-reads each turn — so output is a minority of the bill (14% here).
+
+## How to act
+
+- Run /compact when the context window gets large (saving applies going forward, not retroactively).
+- Start a fresh session once a task is done instead of carrying a huge history forward.
+- Don't keep large files or chatty tool output resident in context — context added early is re-billed on every later turn.
+- Optimizing output or fresh input barely moves a long-session bill; trimming context moves it a lot.
+
+## Method & honesty
+
+- Measured with the tokenscope CLI (https://github.com/wartzar-bee/tokenscope; npm @wartzar-bee/tokenscope), which reads Claude Code local logs (~/.claude/projects/**/*.jsonl) read-only and multiplies token counts by documented Anthropic prices incl. cache multipliers (write 1.25x/2x, read 0.1x of input).
+- n=1: the SPECIFIC numbers are this session's actual figures; the MECHANIC (re-sent context dominates long sessions) generalizes, the exact split does not. No fabricated, aggregate, or cross-model statistics on the page.
+- Charts are hand-coded deterministic SVG (no chart library, no image generation, no external assets). The cost-split segment widths and the ~998k peak are real; the intermediate context-growth curve shape is illustrative (noted on-page).
+- Prices can change by tier/time — verify current Anthropic pricing; overridable in .tokenscope.json.
+
+## Pages
+
+- [Data study: Anatomy of a Claude Code session](https://tokenscope.pages.dev/study/): full study with TL;DR, hand-coded SVG charts, data table, method/honesty note, and FAQ.
+
+## About
+
+- Published by tokenscope, a local, read-only Claude Code cost & context attribution CLI. MIT. Not affiliated with or endorsed by Anthropic. tokenscope is the measurement tool that produced these numbers; it is presented plainly with one link + the npm package.

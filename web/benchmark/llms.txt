@@ -1,0 +1,41 @@
+# Claude Code cost benchmark: what a session really costs
+
+> An honest cost benchmark of 66 real Claude Code (agentic coding) sessions, measured locally with the tokenscope CLI on 2026-05-29 using default pricing. IMPORTANT: this is a SINGLE-USER reference set, not a census or representative survey of all Claude Code users — every session comes from one heavy user (tokenscope's own development), filtered to cost > 0 and at least 3 model turns. Free to read and cite. No trackers, no fabricated, adjusted, or representative-survey statistics.
+
+## Key facts (safe to quote — single-user reference set, n=66)
+
+- Median (p50) session cost: ~$4.08. Per-session cost percentiles: p10 $1.63, p25 $2.10, p50 $4.08, p75 $8.31, p90 $11.42.
+- Re-sent (cached) context as % of spend, per session: p10 14%, p25 19%, p50 24%, p75 31%, p90 46%.
+- Cache efficiency %, per session: p10 69%, p25 77%, p50 83%, p75 87%, p90 94%.
+- Peak context (tokens), per session: p10 24,153, p25 28,466, p50 44,904, p75 69,741, p90 86,124.
+- Model turns per session: p10 15, p25 18, p50 29, p75 39, p90 67.
+- Pooled aggregate across all 66 sessions: total $2,650.90 over 4,339 turns; spend split = output 15% / re-sent cached context 60% / new cached context (cache write) 25% / fresh input ~0%; pooled cache efficiency 98%; heaviest session peak context 999,541 tokens; average peak 251,371 tokens.
+
+## The headline insight (the point of the page)
+
+- The MEDIAN session re-sends only ~24% of its spend as cached context, but POOLED (dollar-weighted) it is 60% — because cost concentrates in a few long, long-context sessions where re-sent context dominates.
+- So "Claude Code is expensive" is really "a few long sessions are expensive, and in those, re-sent context is the bill." The typical session is cheap and balanced; the monthly total is decided by a handful of long-context marathons.
+- Per-session percentiles weight every session equally (the median); pooled aggregates weight every dollar equally (the total bill). The gap between 24% and 60% is exactly that difference — and it is the finding.
+
+## How to compare your own
+
+- Run `npx @wartzar-bee/tokenscope --share` in your terminal. It reads your Claude Code logs locally (read-only, nothing uploaded) and prints your cost, re-sent-context share, cache efficiency, peak context, and turn count — the exact metrics tabulated on this page — so you can see which percentile your session lands in.
+- The `--share` flag also produces a self-contained card (aggregate numbers only — no file paths, no prompt/response content) that links back to this benchmark: `benchmark: tokenscope.pages.dev/benchmark`.
+
+## Method & honesty
+
+- Measured with the tokenscope CLI (https://github.com/wartzar-bee/tokenscope; npm @wartzar-bee/tokenscope), which reads Claude Code local logs (~/.claude/projects/**/*.jsonl) read-only and multiplies token counts by documented Anthropic prices incl. cache multipliers (write 1.25x/2x, read 0.1x of input).
+- Filter: sessions with cost > 0 and >= 3 model turns. After filtering, n = 66.
+- SINGLE user: all 66 sessions are from one heavy user. This is a REFERENCE SET, not a census, not a representative survey, not a population average. We plan to re-measure and grow it as people opt in to share aggregate, anonymous numbers via --share.
+- The MECHANIC (cost concentrates in a few long sessions; re-sent context dominates those) generalizes; the SPECIFIC numbers (median $4.08, 24%/60% split) are this reference set's actual figures and would shift for a different user, project mix, or price sheet.
+- Charts are hand-coded deterministic SVG (no chart library, no image generation, no external assets). Bar lengths are computed directly from the percentile values.
+- Prices can change by tier/time — verify current Anthropic pricing; overridable in .tokenscope.json.
+
+## Pages
+
+- [Cost benchmark](https://tokenscope.pages.dev/benchmark/): full benchmark with TL;DR, percentile tables, hand-coded SVG charts, methodology, limitations, and FAQ.
+- [Data study: Anatomy of a Claude Code session (n=1)](https://tokenscope.pages.dev/study/): the single long-session view behind this benchmark's expensive tail.
+
+## About
+
+- Published by tokenscope, a local, read-only Claude Code cost & context attribution CLI. MIT. Not affiliated with or endorsed by Anthropic. tokenscope is the measurement tool that produced these numbers; presented plainly with one link + the npm package.

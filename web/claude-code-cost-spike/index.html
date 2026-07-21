@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why did my Claude Code cost spike? — tokenscope</title>
+<meta name="description" content="Claude Code cost spikes happen when a single long session accumulates a huge context. The extreme case in measured data: $1,278 in one session. Here's how to diagnose a spike and what causes them.">
+<link rel="canonical" href="https://tokenscope.pages.dev/claude-code-cost-spike/">
+<meta property="og:title" content="Why did my Claude Code cost spike?">
+<meta property="og:description" content="One session, $1,278. Cost spikes in Claude Code are almost always one very long session with huge context. Here's how to diagnose and prevent them.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://tokenscope.pages.dev/claude-code-cost-spike/">
+<meta property="og:site_name" content="tokenscope">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Why did my Claude Code cost spike?">
+<meta name="twitter:description" content="Almost always: one very long session with huge context. How to find it and prevent the next one.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='13'%3E%E2%8F%A3%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Why did my Claude Code bill spike suddenly?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Claude Code cost spikes are almost always caused by a single very long session that accumulated a large context. Once context grows large, every subsequent turn pays to re-send that entire context at the cache-read rate (0.1x input price). A session that reaches 500k tokens and runs for 200 turns incurs roughly 500k × 200 × cache_read_rate in re-send cost — which compounds quickly. In measured data (n=66 sessions), one session reached $1,278 while the median was $4.08."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How do I find which session caused a cost spike?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Run tokenscope (npx @wartzar-bee/tokenscope). It shows all sessions ranked by cost, with the context growth curve and spend attribution for each one. The spike session will appear at the top of the cost ranking."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How can I prevent Claude Code cost spikes?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Three main prevention strategies: (1) Use /compact before context grows very large — this replaces accumulated context with a shorter summary, reducing what's re-sent on each following turn. (2) Start fresh sessions for new tasks rather than continuing one very long session. (3) Run tokenscope periodically to catch sessions where context is growing toward expensive territory before the cost has fully accumulated."
+      }
+    }
+  ]
+}
+</script>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <div class="brand"><a href="/">tokenscope &#9187;</a></div>
+    <div class="crumbs"><a href="/">Home</a> &rsaquo; Guides &rsaquo; Why did my Claude Code cost spike?</div>
+    <h1>Why did my Claude Code <span class="hl">cost spike?</span></h1>
+    <p class="lead">Almost always: a single session that ran a very long time with a large context.
+      In the n=66 benchmark data, one session cost $1,278 while the median was $4.08. Here's how
+      to find it, understand it, and prevent the next one.</p>
+  </div>
+</header>
+
+<article>
+<section>
+  <div class="wrap">
+    <h2>The anatomy of a cost spike</h2>
+    <p>Claude Code sessions are priced on <em>every turn</em> re-sending the full accumulated context.
+      This creates a super-linear cost pattern: a session that runs much longer than usual
+      doesn't just cost proportionally more — it costs disproportionately more.</p>
+    <p>The typical pattern:</p>
+    <ol class="steps">
+      <li><strong>Session starts normally.</strong> A few files read, a few commands run. Context is
+        20–50k tokens. Turns cost fractions of a cent each in cache-read cost.</li>
+      <li><strong>Task expands.</strong> More files pulled in. Large command output accumulated. Context
+        grows to 200k, 400k, 800k tokens. Each turn now re-sends all of that at 0.1× input price.</li>
+      <li><strong>Session keeps running.</strong> 100, 200, 500+ turns. The per-turn cost is now much
+        higher than it was in the first 30 turns. The session is still running, and the bill is
+        compounding silently in the background.</li>
+    </ol>
+    <div class="callout warn">
+      <strong>The $1,278 session:</strong> 1,270 turns, ~998k peak context, 66% of cost from
+      cache-read alone — paying to re-send nearly 1 million tokens of context, every turn.
+      Full breakdown at the <a href="/study/">anatomy study</a>.
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>How to diagnose a spike</h2>
+    <p>The fastest way to find the culprit session:</p>
+    <div class="cta">
+      <p style="margin-top:0"><strong>Run tokenscope to see all sessions ranked by cost:</strong></p>
+      <div class="cmd">
+        <code>npx @wartzar-bee/tokenscope</code>
+      </div>
+      <p class="small" style="margin-bottom:0">Local, read-only. Reads <code>~/.claude/projects/**/*.jsonl</code>. No upload. MIT.</p>
+    </div>
+    <p>tokenscope shows:</p>
+    <ul>
+      <li>All sessions sorted by cost</li>
+      <li>Per-session turn count, peak context, and spend split (cache-read / cache-write / output)</li>
+      <li>The context growth curve — when in the session context ballooned</li>
+    </ul>
+    <p>The spike session will be at the top of the cost list. The context growth curve shows you exactly
+      where in the session the context grew to expensive territory.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Common spike triggers</h2>
+    <table>
+      <thead><tr><th>Trigger</th><th>What happened</th><th>How to avoid</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Reading a large file or repo</strong></td>
+          <td>One large file (or many medium ones) pushed context from 50k to 300k+ tokens in a few turns</td>
+          <td>Only load files the model needs for the current subtask; close files when done</td>
+        </tr>
+        <tr>
+          <td><strong>Verbose command output</strong></td>
+          <td>A command with very long output (logs, test results, build output) added tens of thousands of tokens to the context</td>
+          <td>Redirect verbose output to files; paste only relevant excerpts</td>
+        </tr>
+        <tr>
+          <td><strong>Session scope creep</strong></td>
+          <td>Started with one task, kept adding new tasks without starting a fresh session — context carried all prior task history</td>
+          <td>Start a new session for each distinct task or codebase area</td>
+        </tr>
+        <tr>
+          <td><strong>No /compact on a long session</strong></td>
+          <td>Session ran 100+ turns without compacting — by turn 100, the early file reads and tool results were still in context even though the model no longer needed them</td>
+          <td>Use /compact at natural breakpoints (when you're shifting to a new subtask)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>The prevention checklist</h2>
+    <p>These three habits prevent most spikes:</p>
+    <ol class="steps">
+      <li><strong>Compact proactively.</strong> Use <code>/compact</code> when you finish a significant
+        subtask or when you notice context has grown large. See
+        <a href="/when-to-use-compact-claude-code/">when to use /compact</a>.</li>
+      <li><strong>Fresh sessions for new tasks.</strong> Don't carry context from one task into the next.
+        A fresh session starts at low cost; a continued session carries all prior context for the cost
+        of every subsequent turn.</li>
+      <li><strong>Check your sessions periodically.</strong> Running tokenscope after a work session
+        shows you which sessions are trending expensive, before the cost has fully accumulated in a
+        multi-day session.</li>
+    </ol>
+    <p>The full <a href="/reduce-claude-code-bill/">cost reduction guide</a> covers each of these in detail,
+      with additional techniques for keeping context small.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>How much is a "normal" spike?</h2>
+    <p>From the <a href="/benchmark/">n=66 benchmark</a>:</p>
+    <table>
+      <thead><tr><th>Percentile</th><th class="num">Session cost</th></tr></thead>
+      <tbody>
+        <tr><td>p50 (median)</td><td class="num">$4.08</td></tr>
+        <tr><td>p75</td><td class="num">$8.31</td></tr>
+        <tr><td>p90</td><td class="num">$11.42</td></tr>
+        <tr><td>Extreme (n=1)</td><td class="num">~$1,278</td></tr>
+      </tbody>
+    </table>
+    <p>A $10–15 session is within normal range for a longer day of coding. A $50+ session suggests a
+      session ran significantly longer than intended, or a large file read pushed context to expensive
+      territory. A $100+ session almost always has an identifiable cause in the session logs.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>FAQ</h2>
+    <p class="faqq">Can I get a refund for a session that spiked unexpectedly?</p>
+    <p class="faqa">tokenscope can't help with billing — contact Anthropic support. tokenscope can help
+      you understand exactly what happened in the session: which file reads grew the context, which turns
+      were most expensive, and what the total breakdown looks like.</p>
+
+    <p class="faqq">Why didn't Claude Code warn me before the context got expensive?</p>
+    <p class="faqa">Claude Code shows a context usage indicator, but it doesn't show the real-time cost
+      of that context being re-sent. The cost is invisible until you look at the API bill or run a
+      tool like tokenscope that reconstructs the cost from the session logs.</p>
+
+    <p class="faqq">Is there a way to set a spending limit for a single session?</p>
+    <p class="faqa">Not natively in Claude Code. The practical equivalent is setting a personal rule
+      (e.g. compact or restart when the context indicator shows 100k+ tokens) and running tokenscope
+      regularly to monitor actual spend patterns.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Keep reading</h2>
+    <ul class="related">
+      <li><a href="/study/"><span class="t">Anatomy of a $1,278 session</span><span class="d">The extreme case traced turn by turn — where the cost came from.</span></a></li>
+      <li><a href="/claude-code-cost-long-session/"><span class="t">Why long sessions cost disproportionately more</span><span class="d">The turns × context compounding effect explained.</span></a></li>
+      <li><a href="/when-to-use-compact-claude-code/"><span class="t">When to use /compact</span><span class="d">The right time to compact — and when a fresh session is better.</span></a></li>
+      <li><a href="/reduce-claude-code-bill/"><span class="t">How to reduce your Claude Code bill</span><span class="d">Concrete prevention checklist, ordered by impact.</span></a></li>
+      <li><a href="/benchmark/"><span class="t">Cost benchmark (n=66)</span><span class="d">What's normal — and where the spike sessions sit in the distribution.</span></a></li>
+    </ul>
+  </div>
+</section>
+</article>
+
+<footer>
+  <div class="wrap">
+    tokenscope &mdash; local, read-only Claude Code cost &amp; context attribution.
+    MIT. Not affiliated with Anthropic. &middot; <a href="/">Home</a> &middot; <a href="https://github.com/wartzar-bee/tokenscope">GitHub</a>
+  </div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Code cache hit rate — what's good? — tokenscope</title>
+<meta name="description" content="Measured cache efficiency from 66 real Claude Code sessions: median 83%, p90 94%, pooled 98%. What cache hit rate means, how it's calculated, and what drives it up or down.">
+<link rel="canonical" href="https://tokenscope.pages.dev/claude-code-cache-hit-rate/">
+<meta property="og:title" content="Claude Code cache hit rate — what's good?">
+<meta property="og:description" content="Median 83%, p90 94%, pooled 98% from 66 real sessions. What it means, how to read it, and what drives it.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://tokenscope.pages.dev/claude-code-cache-hit-rate/">
+<meta property="og:site_name" content="tokenscope">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Claude Code cache hit rate — what's good?">
+<meta name="twitter:description" content="Median 83%, pooled 98%. What cache efficiency means in practice and what drives it.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='13'%3E%E2%8F%A3%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is a good cache hit rate for Claude Code?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Based on measured data from 66 real sessions: median cache efficiency is 83%, p90 is 94%, and pooled across all 66 sessions it is 98%. A cache hit rate above 80% is typical for normal usage. Very low rates (below 60%) indicate the prompt cache is being invalidated or that sessions are very short. Cache efficiency = cache_read_tokens / (cache_read_tokens + cache_write_tokens)."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How is cache efficiency calculated?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Cache efficiency is the ratio of cache-read tokens (context re-sent from cache on this turn) to total cache tokens (read + write) in a session. A high efficiency means the session is successfully re-using previously written context rather than re-writing it every turn. Formula: cache_efficiency = cache_read / (cache_read + cache_write)."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What causes low cache efficiency in Claude Code?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Low cache efficiency means the cache is being frequently invalidated and rewritten. Causes include: (1) very short sessions where there is little opportunity to re-read written context, (2) cache expiry (5-minute or 1-hour TTL) between turns in a slow session, (3) major prompt restructuring that shifts cache break-points, (4) switching models mid-session."
+      }
+    }
+  ]
+}
+</script>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <div class="brand"><a href="/">tokenscope &#9187;</a></div>
+    <div class="crumbs"><a href="/">Home</a> &rsaquo; Guides &rsaquo; Claude Code cache hit rate</div>
+    <h1>Claude Code <span class="hl">cache hit rate</span></h1>
+    <p class="lead">Cache efficiency tells you how much of your accumulated context is being re-read
+      from cache versus rewritten from scratch. Measured across 66 real sessions:
+      the median is <strong>83%</strong>, the 90th percentile is <strong>94%</strong>.</p>
+  </div>
+</header>
+
+<article>
+<section>
+  <div class="wrap">
+    <h2>What cache efficiency measures</h2>
+    <p>Every turn in a Claude Code session sends some tokens that were already in the cache (cache read)
+      and potentially some new tokens entering the cache for the first time (cache write). Cache efficiency
+      is the fraction of cached context that is <em>reused</em> rather than rewritten:</p>
+    <div class="callout">
+      <code>cache_efficiency = cache_read_tokens / (cache_read_tokens + cache_write_tokens)</code>
+    </div>
+    <p>A session with 100% efficiency means every cached token is read from an existing cache entry —
+      nothing is being rewritten. In practice, efficiency rises as a session progresses, because early
+      turns write new context and later turns mostly re-read it.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Measured values from 66 real sessions</h2>
+    <p>From the <a href="/benchmark/">n=66 benchmark</a>:</p>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Metric</th><th class="num">Value</th><th>What it means</th></tr></thead>
+      <tbody>
+        <tr><td>Cache efficiency — p10</td><td class="num">69%</td><td>Shorter sessions with more write-heavy early turns</td></tr>
+        <tr><td>Cache efficiency — p25</td><td class="num">77%</td><td></td></tr>
+        <tr><td><strong>Cache efficiency — p50 (median)</strong></td><td class="num"><strong>83%</strong></td><td><strong>Typical session in normal usage</strong></td></tr>
+        <tr><td>Cache efficiency — p75</td><td class="num">87%</td><td></td></tr>
+        <tr><td>Cache efficiency — p90</td><td class="num">94%</td><td>Longer sessions where re-reads dominate</td></tr>
+        <tr><td><strong>Pooled (all 66 sessions)</strong></td><td class="num"><strong>98%</strong></td><td><strong>Long sessions dominate pooled spend; very high read ratio</strong></td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>The pooled rate (98%) is higher than the per-session median (83%) because cost is concentrated
+      in a few long sessions, and long sessions have much higher efficiency — they write context once
+      and then re-read it hundreds of times.</p>
+    <div class="callout warn">
+      <strong>Note:</strong> cache efficiency is a different metric from the cache-read fraction of spend.
+      Even a 98%-efficient session spends 60% of its budget on cache reads — because the accumulated
+      context is large and re-sent many times.
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>What drives cache efficiency</h2>
+    <h3>Efficiency goes up when:</h3>
+    <ul>
+      <li><strong>Sessions run longer.</strong> More turns means more opportunities to re-read previously
+        written context before it expires.</li>
+      <li><strong>The stable prefix is large.</strong> Claude Code caches at stable token boundaries.
+        A large, stable system prompt and tool definitions sit at the top of every call and accumulate
+        reads quickly.</li>
+      <li><strong>Turns happen quickly.</strong> The 5-minute TTL (short) and 1-hour TTL (extended) mean
+        slow back-and-forth pauses may cause cache expiry, forcing a re-write.</li>
+    </ul>
+    <h3>Efficiency goes down when:</h3>
+    <ul>
+      <li><strong>Sessions are very short.</strong> Few turns means few reads per write — the efficiency
+        ratio stays low.</li>
+      <li><strong>Long pauses between turns.</strong> If the cache expires, the context is rewritten on
+        the next turn at the write rate (1.25× or 2×) instead of the read rate (0.1×).</li>
+      <li><strong>Prompt structure changes frequently.</strong> Cache entries are tied to specific token
+        boundaries. Restructuring the prompt mid-session (e.g. changing tool definitions) can invalidate
+        cache entries, forcing re-writes.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Cache efficiency vs cache-read spend</h2>
+    <p>High cache efficiency is good (you're reusing context, not rewriting it), but it doesn't mean
+      your costs are low. A session with 98% cache efficiency but 500k tokens of accumulated context
+      is still paying to re-send those 500k tokens every turn — at the 0.1× read rate, which still
+      adds up on a 100-turn session.</p>
+    <p>The <a href="/claude-code-cache-cost-explained/">cache cost explainer</a> covers how even the
+      discounted read rate becomes the largest cost line on long sessions.</p>
+    <p>The two metrics to watch are:</p>
+    <ol>
+      <li><strong>Cache efficiency</strong> — are you reusing vs rewriting? (Higher is better.)</li>
+      <li><strong>Peak context size</strong> — how large is the context being re-sent? (Smaller is
+        cheaper per turn.)</li>
+    </ol>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>See your own cache efficiency</h2>
+    <div class="cta">
+      <p style="margin-top:0"><strong>Run tokenscope to see cache efficiency per session:</strong></p>
+      <div class="cmd">
+        <code>npx @wartzar-bee/tokenscope</code>
+      </div>
+      <p class="small" style="margin-bottom:0">Local, read-only. Reads <code>~/.claude/projects/**/*.jsonl</code>.
+        No network. MIT.</p>
+    </div>
+    <p>tokenscope shows per-session cache efficiency alongside the full spend split. The
+      <a href="/benchmark/">benchmark</a> has the full distribution from n=66.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>FAQ</h2>
+    <p class="faqq">Is 83% cache efficiency good?</p>
+    <p class="faqa">Yes — for a typical Claude Code session length, 83% is normal. It means most of the
+      context is being served from cache rather than rewritten each turn. The practical range from 66
+      sessions is 69% (p10) to 94% (p90). Very low efficiency (below 50%) usually indicates short sessions,
+      slow interaction causing TTL expiry, or significant prompt restructuring.</p>
+
+    <p class="faqq">What's the difference between cache efficiency and cache hit rate?</p>
+    <p class="faqa">They measure the same thing: how much of the cached context is served from an
+      existing cache entry (read) versus written fresh (write). The formula above
+      (<code>cache_read / (cache_read + cache_write)</code>) is what tokenscope calls cache efficiency.
+      Some tools call this the cache hit rate. The Anthropic API returns <code>cache_read_input_tokens</code>
+      and <code>cache_creation_input_tokens</code> separately in usage objects.</p>
+
+    <p class="faqq">Can I improve my cache efficiency?</p>
+    <p class="faqa">Somewhat. The main knobs are: (1) keep sessions active (avoid long idle pauses that
+      expire the TTL), (2) don't restructure the prompt frequently, (3) run longer sessions on a focused
+      task. But beyond those, efficiency is mostly a function of session length — the longer a session,
+      the higher efficiency naturally becomes.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Keep reading</h2>
+    <ul class="related">
+      <li><a href="/claude-code-cache-cost-explained/"><span class="t">Claude Code cache &amp; context cost, explained</span><span class="d">How cache-read and cache-write rates translate into dollars.</span></a></li>
+      <li><a href="/benchmark/"><span class="t">Claude Code cost benchmark (n=66)</span><span class="d">Full distribution including cache efficiency percentiles.</span></a></li>
+      <li><a href="/claude-code-cost-per-session/"><span class="t">How much does a Claude Code session cost?</span><span class="d">The $4.08 median and $1,278 extreme — full distribution.</span></a></li>
+      <li><a href="/claude-code-context-window-cost/"><span class="t">Claude Code context window cost</span><span class="d">How window size translates into per-turn cost.</span></a></li>
+    </ul>
+  </div>
+</section>
+</article>
+
+<footer>
+  <div class="wrap">
+    tokenscope &mdash; local, read-only Claude Code cost &amp; context attribution.
+    MIT. Not affiliated with Anthropic. &middot; <a href="/">Home</a> &middot; <a href="https://github.com/wartzar-bee/tokenscope">GitHub</a>
+  </div>
+</footer>
+</body>
+</html>

@@ -6,6 +6,18 @@
 //   shareSummary(a)      -> a compact, privacy-safe data object
 //   shareMarkdown(a)     -> markdown to paste into Reddit/Discord/GitHub issues
 //   shareCardSVG(a)      -> a self-contained "cost report card" SVG (renders on GitHub)
+//   shareLink(a)         -> a frictionless https link whose URL *fragment* carries the
+//                           privacy-safe summary (fragments never reach a server) so a
+//                           recipient renders the SENDER's card client-side + sees a
+//                           one-command "make your own" CTA. The self-distribution loop.
+
+import { benchmarkOf } from "./benchmark.mjs";
+
+// Where the shareable /card/ page lives.
+// UTM params ride the query string (before the #fragment) so Cloudflare Pages logs
+// and any analytics beacon see inbound share-card clicks as attributable traffic.
+// The fragment itself (#<data>) is never sent to the server — privacy unchanged.
+export const CARD_BASE_URL = "https://tokenscope.pages.dev/card/?utm_source=card&utm_medium=share&utm_campaign=tokenscope#";
 
 // --- formatting helpers (kept here so the web bundle can reuse them too) ---
 export const usd = (n) => "$" + (n < 10 ? n.toFixed(2) : Math.round(n).toLocaleString());
@@ -38,7 +50,7 @@ export function shareSummary(a) {
   // Model families only (e.g. "claude-opus-4") — never concrete ids tied to anything.
   const models = Object.keys(a.byModel || {});
 
-  return {
+  const summary = {
     tool: "tokenscope",
     totalCost: r2(a.totalCost || 0),
     turns: a.turns || 0,
@@ -51,6 +63,9 @@ export function shareSummary(a) {
     models,
     headline
   };
+  // How does this session compare? (vs a shipped, offline reference set — see benchmark.mjs)
+  summary.benchmark = a.totalCost > 0 ? benchmarkOf(summary) : null;
+  return summary;
 }
 
 // Markdown for pasting into Reddit / Discord / a GitHub issue.
@@ -80,6 +95,14 @@ export function shareMarkdown(a) {
   L.push("");
   L.push(`Peak context ~${ktok(s.context.peak)} tokens (avg ${ktok(s.context.avg)}). Cache efficiency ${s.cacheEfficiency}%.`);
   L.push("");
+  if (s.benchmark) {
+    const b = s.benchmark;
+    L.push(`**How this compares** — vs ${b.ref.n} real sessions ([benchmark](https://tokenscope.pages.dev/benchmark/), measured ${b.ref.asOf}; a reference set, not a census):`);
+    L.push(`- Cost ${usd(s.totalCost)} — bigger than ~${b.costPctile}% of measured sessions (median ${usd(b.median.costUsd)})`);
+    L.push(`- Cache efficiency ${s.cacheEfficiency}% — more efficient than ~${b.cacheEffPctile}% (median ${b.median.cacheEff}%)`);
+    L.push(`- Re-sent context ${s.split.cacheRead.pct}% — median session ${b.median.resentPct}%`);
+    L.push("");
+  }
   L.push("_Generated locally by [tokenscope](https://github.com/wartzar-bee/tokenscope) — `npx @wartzar-bee/tokenscope --share`. Read-only, no upload; numbers only, no paths or content._");
   return L.join("\n");
 }
@@ -90,7 +113,7 @@ export function shareCardSVG(a) {
   const s = shareSummary(a);
   const esc = (str) => String(str).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
 
-  const W = 600, H = 340;
+  const W = 600, H = 410; // extra height for CTA pill
   const segs = [
     { key: "output", label: "output", color: "#22d3ee" },
     { key: "cacheRead", label: "re-sent ctx", color: "#fbbf24" },
@@ -125,6 +148,18 @@ export function shareCardSVG(a) {
     if (lx > W - 120) { lx = barX; ly += 24; }
   }
 
+  const b = s.benchmark;
+  const insight = b
+    ? `${esc(s.split.cacheRead.pct)}% of spend was re-sent context  ·  median session ${esc(b.median.resentPct)}%`
+    : `${esc(s.split.cacheRead.pct)}% of spend was re-sent (cached) context`;
+  // compare text anchored from bottom of data area, above CTA pill
+  const compare = b
+    ? `<text x="36" y="${H - 96}" font-family="ui-sans-serif,system-ui,sans-serif" font-size="13" fill="#94a3b8">more cache-efficient than ~<tspan fill="#34d399" font-weight="700">${esc(b.cacheEffPctile)}%</tspan> of ${esc(b.ref.n)} measured sessions</text>`
+    : "";
+  // CTA pill — baked into every shared SVG so recipient=sender fires even when
+  // the SVG is pasted directly into GitHub/Discord/Slack (no surrounding HTML).
+  const pillY = H - 52, pillH = 34, pillW = 276;
+
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="tokenscope cost report card">
   <rect width="${W}" height="${H}" rx="14" fill="#0f172a"/>
   <rect x="0.5" y="0.5" width="${W - 1}" height="${H - 1}" rx="14" fill="none" stroke="#1e293b"/>
@@ -136,7 +171,62 @@ export function shareCardSVG(a) {
   <rect x="${barX}" y="${barY}" width="${barW}" height="${barH}" rx="4" fill="#1e293b"/>
   ${barParts.join("\n  ")}
   ${legendParts.join("\n  ")}
-  <text x="36" y="${H - 64}" font-family="ui-sans-serif,system-ui,sans-serif" font-size="15" font-weight="600" fill="#fbbf24">${esc(s.split.cacheRead.pct)}% of spend was re-sent (cached) context</text>
-  <text x="36" y="${H - 24}" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12" fill="#64748b">npx @wartzar-bee/tokenscope --share  ·  read-only, local, numbers only</text>
+  <text x="36" y="${H - 130}" font-family="ui-sans-serif,system-ui,sans-serif" font-size="15" font-weight="600" fill="#fbbf24">${insight}</text>
+  ${compare}
+  <!-- CTA pill: self-distribution — every shared card invites the next user -->
+  <rect x="36" y="${pillY}" width="${pillW}" height="${pillH}" rx="17" fill="#34d399"/>
+  <text x="${36 + pillW / 2}" y="${pillY + 22}" text-anchor="middle" font-family="ui-sans-serif,system-ui,sans-serif" font-weight="800" font-size="15" fill="#06281b">Make your own → tokenscope.pages.dev</text>
 </svg>`;
+}
+
+// --- shareable LINK (the self-distribution loop) --------------------------------
+//
+// We pack the privacy-safe summary into a SHORT, ordered numeric array and base64url
+// it into the URL *fragment* (#...). Fragments are NEVER transmitted to a server, so:
+//   - the comparison/render happens 100% client-side on a plain static host (no upload),
+//   - the privacy guarantee is structural — only the same aggregate numbers --share
+//     already prints ever leave the machine, and even those don't hit our server.
+// The encode/decode pair is mirrored 1:1 in web/card/card.js (kept in sync by a test).
+
+// base64url that works in Node and the browser without deps.
+const toB64url = (str) => {
+  const b64 = typeof Buffer !== "undefined"
+    ? Buffer.from(str, "utf8").toString("base64")
+    : btoa(unescape(encodeURIComponent(str)));
+  return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+};
+
+// Pack ONLY privacy-safe aggregate numbers into a positional array (v1 schema).
+// Order is the contract with the decoder; never add free-text or anything content-derived.
+export function packSummary(a) {
+  const s = shareSummary(a);
+  const sp = s.split;
+  const cell = (v) => [v ? v.usd : 0, v ? v.pct : 0];
+  // [schema, totalCost, turns, [outU,outP], [crU,crP], [cwU,cwP], [fiU,fiP],
+  //  peak, avg, cacheEff, modelCount, [webU,webP]?]
+  const arr = [
+    1,
+    s.totalCost,
+    s.turns,
+    cell(sp.output),
+    cell(sp.cacheRead),
+    cell(sp.cacheWrite),
+    cell(sp.freshInput),
+    s.context.peak,
+    s.context.avg,
+    s.cacheEfficiency,
+    s.models.length
+  ];
+  if (sp.webTools) arr.push(cell(sp.webTools));
+  return arr;
+}
+
+// Build the full frictionless share URL for a tokenscope analysis.
+// base already ends in "#" (CARD_BASE_URL = ".../?utm_source=...#") so we
+// append the payload directly.  A custom base without the trailing "#" is
+// handled by the ternary below so callers passing a plain URL still work.
+export function shareLink(a, base = CARD_BASE_URL) {
+  if (!a || !(a.totalCost > 0)) return null; // nothing to flex on a zero-cost session
+  const payload = toB64url(JSON.stringify(packSummary(a)));
+  return base.endsWith("#") ? base + payload : base + "#" + payload;
 }

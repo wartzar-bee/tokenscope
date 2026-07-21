@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Code output token cost — why it's only 15% of your bill — tokenscope</title>
+<meta name="description" content="Output tokens (what the model generates) are only ~15% of total Claude Code spend in measured sessions. The other 85% is re-sent context. Here's why output is a surprisingly small fraction — and when it matters.">
+<link rel="canonical" href="https://tokenscope.pages.dev/claude-code-output-tokens-cost/">
+<meta property="og:title" content="Claude Code output token cost — only 15% of the bill">
+<meta property="og:description" content="Measured across 66 sessions: output tokens = 15% of spend. The other 85% is context re-sending. Here's why.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://tokenscope.pages.dev/claude-code-output-tokens-cost/">
+<meta property="og:site_name" content="tokenscope">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Claude Code output token cost: only 15% of the bill">
+<meta name="twitter:description" content="In agentic coding sessions, the model writing code is 15% of spend. The other 85% is re-sent context.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='13'%3E%E2%8F%A3%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "How much of my Claude Code bill is output tokens?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Based on measured data from 66 real Claude Code sessions, output tokens account for approximately 15% of pooled total spend. The other 85% is re-sent context: 60% cache-read (context re-sent every turn) and 25% cache-write (new context written to cache). Output tokens are a smaller fraction of the bill than most users expect."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Why are output tokens such a small fraction of Claude Code cost?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Because agentic coding sessions re-send large amounts of context on every turn, and context volume grows much faster than output volume. A typical 29-turn session might generate 200 output tokens per turn (5,800 total output tokens) while re-sending 44,900 tokens of context on each of those 29 turns (1.3M total context re-send tokens). Even with output priced higher per token, the volume ratio means context dominates."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "When does output cost become a larger fraction of my Claude Code bill?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Output becomes a larger fraction of spend when sessions are short (few re-sends of context) or when the model generates long responses (detailed plans, large code blocks). In a short 5-turn session with small context, output might be 40-50% of spend. In a 200-turn session with 500k context, output might be under 5%."
+      }
+    }
+  ]
+}
+</script>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <div class="brand"><a href="/">tokenscope &#9187;</a></div>
+    <div class="crumbs"><a href="/">Home</a> &rsaquo; Guides &rsaquo; Output token cost</div>
+    <h1>Claude Code <span class="hl">output token cost</span></h1>
+    <p class="lead">The model writing code — generating replies, producing output — accounts for only
+      <strong>~15% of total spend</strong> in measured Claude Code sessions. The other 85% is context
+      re-sending. Here's why, and when it changes.</p>
+  </div>
+</header>
+
+<article>
+<section>
+  <div class="wrap">
+    <h2>The 60/25/15 split (measured, n=66)</h2>
+    <p>From the <a href="/benchmark/">n=66 benchmark</a>, pooled across all 66 sessions:</p>
+    <table>
+      <thead><tr><th>Spend category</th><th class="num">Share</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td>Cache read (re-sent context)</td><td class="num">60%</td><td>Accumulated context re-sent every turn</td></tr>
+        <tr><td>Cache write (new context)</td><td class="num">25%</td><td>Context entering cache for the first time</td></tr>
+        <tr><td><strong>Output</strong></td><td class="num"><strong>15%</strong></td><td><strong>Tokens the model generated — code, explanations</strong></td></tr>
+        <tr><td>Fresh input</td><td class="num">~0%</td><td>Uncached prompt tokens</td></tr>
+      </tbody>
+    </table>
+    <div class="callout warn">
+      <strong>The counter-intuitive result:</strong> the model writing code — the thing most users
+      think of as "what I'm paying for" — is the smallest major line item on the bill.
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Why output is a small fraction in long sessions</h2>
+    <p>Output tokens are priced higher than input/cache rates — but output <em>volume</em> is much
+      smaller than context volume in agentic coding sessions. The math:</p>
+    <ul>
+      <li>A typical model reply: 100–500 tokens of code or explanation per turn.</li>
+      <li>At 29 turns (median), total output: ~3,000–15,000 tokens per session.</li>
+      <li>Context re-sent per turn (median 44,900 tokens) × 29 turns = ~1.3M tokens of context
+        re-send events over the session.</li>
+    </ul>
+    <p>Even with output priced 5–10× higher per token than cache-read, the volume difference
+      (1.3M vs 15k tokens) means cache-read dominates the bill. Output contributes more per token
+      but contributes fewer tokens.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>When output cost is a larger fraction</h2>
+    <p>The 15% figure is for the pooled dataset, dominated by longer sessions. The output fraction
+      varies by session type:</p>
+    <table>
+      <thead><tr><th>Session type</th><th>Output fraction (rough estimate)</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>Very short (&lt;10 turns, small context)</td><td>30–50%</td><td>Few context re-sends; output becomes larger fraction of total</td></tr>
+        <tr><td>Typical (20–50 turns, ~50k context)</td><td>10–20%</td><td>Moderate context re-send volume</td></tr>
+        <tr><td>Long (100+ turns, 200k+ context)</td><td>5–10%</td><td>Large context re-sends dwarf output volume</td></tr>
+        <tr><td>Extreme (1,270 turns, 998k context)</td><td>&lt;5%</td><td>Context re-send volume is enormous relative to output</td></tr>
+      </tbody>
+    </table>
+    <p>The extreme 1,278-turn session had 66% of cost from cache-read alone — the model's code output
+      was a small sliver of that bill. Full details in the <a href="/study/">anatomy study</a>.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>What this means for cost reduction</h2>
+    <p>If output is 15% of spend, then actions that reduce <em>only</em> output (e.g. asking for
+      shorter responses) address a small fraction of the bill. The much larger levers are the ones
+      that reduce context re-sending:</p>
+    <ol class="steps">
+      <li><strong>Keep context small.</strong> Don't open files that aren't needed; minimize verbose
+        tool outputs.</li>
+      <li><strong>Compact or restart.</strong> <code>/compact</code> shrinks the accumulated context;
+        a new session resets it to zero. Both reduce what's re-sent on subsequent turns.</li>
+      <li><strong>Start focused sessions.</strong> A session with a narrow scope stays smaller
+        (fewer files, fewer tool results) than an open-ended explore-everything session.</li>
+    </ol>
+    <p>See the full <a href="/reduce-claude-code-bill/">cost reduction guide</a> for a prioritized
+      checklist. Output optimization is worth doing — but it's downstream of context management.</p>
+    <div class="cta">
+      <p style="margin-top:0"><strong>See the exact output / cache-read / cache-write split in your sessions:</strong></p>
+      <div class="cmd">
+        <code>npx @wartzar-bee/tokenscope</code>
+      </div>
+      <p class="small" style="margin-bottom:0">Local, read-only. No network. MIT.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>FAQ</h2>
+    <p class="faqq">If output is more expensive per token, why does it cost less than input?</p>
+    <p class="faqa">Per-token output rates are typically 5× or more higher than input rates. But in
+      agentic coding, the context (input) volume is enormous — 44,900 tokens re-sent 29 times in the
+      median session. The output volume is much smaller (typically 100–500 tokens per turn). Volume
+      × rate = output loses on volume even though it wins on rate.</p>
+
+    <p class="faqq">Does asking for shorter responses significantly reduce my bill?</p>
+    <p class="faqa">It reduces the 15% output slice, and shorter replies also marginally reduce context
+      growth (shorter prior messages). But for a long session where cache-read is 60–70% of spend,
+      halving output length reduces total bill by ~7%. Compacting or restarting has much larger impact.</p>
+
+    <p class="faqq">What counts as output tokens in Claude Code?</p>
+    <p class="faqa">Everything the model generates in response to each turn: code it writes, explanations,
+      tool call arguments, reasoning text (if thinking is enabled). These are counted by the API as
+      <code>output_tokens</code> in the usage object for each request. tokenscope reads these from
+      the session logs and applies the documented output rate.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Keep reading</h2>
+    <ul class="related">
+      <li><a href="/why-is-claude-code-so-expensive/"><span class="t">Why is Claude Code so expensive?</span><span class="d">The context re-send mechanic — why the model writing code is the smallest line.</span></a></li>
+      <li><a href="/claude-code-cache-cost-explained/"><span class="t">Cache &amp; context cost, explained</span><span class="d">How cache-read and cache-write rates work and why they add up.</span></a></li>
+      <li><a href="/benchmark/"><span class="t">Claude Code cost benchmark (n=66)</span><span class="d">Full spend attribution including the 15% output slice.</span></a></li>
+      <li><a href="/study/"><span class="t">Anatomy of a $1,278 session</span><span class="d">Extreme case where output was under 14% of spend.</span></a></li>
+      <li><a href="/reduce-claude-code-bill/"><span class="t">How to reduce your Claude Code bill</span><span class="d">Concrete actions — ordered by impact.</span></a></li>
+    </ul>
+  </div>
+</section>
+</article>
+
+<footer>
+  <div class="wrap">
+    tokenscope &mdash; local, read-only Claude Code cost &amp; context attribution.
+    MIT. Not affiliated with Anthropic. &middot; <a href="/">Home</a> &middot; <a href="https://github.com/wartzar-bee/tokenscope">GitHub</a>
+  </div>
+</footer>
+</body>
+</html>
