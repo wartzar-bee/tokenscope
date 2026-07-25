@@ -1,0 +1,44 @@
+name: Publish to MCP Registry
+
+# Publishes tokenscope to the Official MCP Registry with ZERO human device-auth.
+# GitHub Actions OIDC authorizes the `io.github.wartzar-bee/*` namespace automatically
+# (the workflow runs inside the wartzar-bee org, so the OIDC token proves org ownership).
+# This matches the live npm ownership proof: @wartzar-bee/tokenscope-mcp ships
+# `mcpName: "io.github.wartzar-bee/tokenscope"` in its package.json — so NO npm republish is needed.
+#
+# Triggers:
+#   - push to main touching server.json or this workflow -> auto-publishes when those files
+#     land (no human "Run workflow" click needed).
+#   - workflow_dispatch -> manual re-run from the Actions tab.
+on:
+  push:
+    branches: [main]
+    paths:
+      - server.json
+      - .github/workflows/publish-mcp-registry.yml
+  workflow_dispatch: {}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # REQUIRED: lets the job mint an OIDC token for mcp-publisher
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install mcp-publisher
+        run: |
+          curl -sL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" \
+            | tar xz mcp-publisher
+          sudo mv mcp-publisher /usr/local/bin/
+          mcp-publisher --help | head -3
+
+      - name: Validate manifest
+        run: mcp-publisher validate ./server.json
+
+      - name: Authenticate via GitHub OIDC (no device-auth)
+        run: mcp-publisher login github-oidc
+
+      - name: Publish
+        run: mcp-publisher publish

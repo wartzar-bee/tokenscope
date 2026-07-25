@@ -1,12 +1,14 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.wartzar-bee/tokenscope",
-  "description": "Analyze Claude Code token cost & context attribution. Local, read-only MCP server.",
+  "title": "Tokenscope",
+  "description": "Analyze Claude Code session cost & context attribution: output, cached re-reads, cache writes.",
+  "version": "0.1.1",
   "repository": {
     "url": "https://github.com/wartzar-bee/tokenscope",
     "source": "github"
   },
-  "version": "0.1.1",
+  "websiteUrl": "https://github.com/wartzar-bee/tokenscope#readme",
   "packages": [
     {
       "registryType": "npm",
@@ -16,5 +18,21 @@
         "type": "stdio"
       }
     }
-  ]
+  ],
+  "_meta": {
+    "io.modelcontextprotocol.registry/publisher-provided": {
+      "tools": [
+        "analyze_claude_cost",
+        "get_cost_benchmark",
+        "tokenscope_share_summary"
+      ],
+      "keywords": [
+        "claude-code",
+        "token-cost",
+        "cost-attribution",
+        "context-window",
+        "observability"
+      ]
+    }
+  }
 }
