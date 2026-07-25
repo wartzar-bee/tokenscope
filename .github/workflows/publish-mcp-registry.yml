@@ -41,4 +41,17 @@ jobs:
         run: mcp-publisher login github-oidc
 
       - name: Publish
-        run: mcp-publisher publish
+        # Idempotent: the registry rejects re-publishing an already-published version with
+        # "cannot publish duplicate version". That is a no-op, not a failure — the manifest for this
+        # version is already live. Treat only that specific case as success; any other error still fails.
+        run: |
+          set -o pipefail
+          out="$(mcp-publisher publish 2>&1)" || {
+            echo "$out"
+            if echo "$out" | grep -q "cannot publish duplicate version"; then
+              echo "::notice::version already published — nothing to do (no-op success)."
+              exit 0
+            fi
+            exit 1
+          }
+          echo "$out"
