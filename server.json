@@ -3,7 +3,7 @@
   "name": "io.github.wartzar-bee/tokenscope",
   "title": "Tokenscope",
   "description": "Analyze Claude Code session cost & context attribution: output, cached re-reads, cache writes.",
-  "version": "0.1.1",
+  "version": "0.2.3",
   "repository": {
     "url": "https://github.com/wartzar-bee/tokenscope",
     "source": "github"
@@ -13,7 +13,7 @@
     {
       "registryType": "npm",
       "identifier": "@wartzar-bee/tokenscope-mcp",
-      "version": "0.1.1",
+      "version": "0.2.3",
       "transport": {
         "type": "stdio"
       }
